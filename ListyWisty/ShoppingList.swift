@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-class ShoppingList: ObservableObject, Identifiable {
+class ShoppingList: ObservableObject, Identifiable, Hashable {
     let id = UUID()
     @Published var name: String
     @Published var items: [String]
@@ -16,4 +16,13 @@ class ShoppingList: ObservableObject, Identifiable {
         self.name = name
         self.items = items
     }
+    
+    // MARK: - Conformance to Hashable
+        static func == (lhs: ShoppingList, rhs: ShoppingList) -> Bool {
+            return lhs.id == rhs.id
+        }
+        
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(id)
+        }
 }

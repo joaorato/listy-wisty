@@ -9,9 +9,10 @@ import SwiftUI
 class ShoppingListViewModel: ObservableObject {
     @Published var lists: [ShoppingList] = []
     
-    func addList(name: String) {
+    func addList(name: String) -> ShoppingList {
         let newList = ShoppingList(name: name)
         lists.append(newList)
+        return newList
     }
     
 }

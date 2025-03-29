@@ -8,30 +8,60 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = ShoppingListViewModel()
-    @State private var showingAddList = false
+    @ObservedObject var viewModel = ShoppingListViewModel()
+    @State private var newListName = ""
+    @State private var showingAlert = false
+    @State private var selectedList: ShoppingList? // ✅ Track newly created list
+
     
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(viewModel.lists) { list in
-                    NavigationLink(destination: ShoppingListDetailView(list: list)) {
-                        Text(list.name)
+        NavigationStack {
+            VStack  {
+                List {
+                    ForEach(viewModel.lists) { list in
+                        NavigationLink(destination: ShoppingListDetailView(list: list)) {
+                            HStack {
+                                Image(systemName: "cart")
+                                    .foregroundColor(.blue)
+                                Text(list.name)
+                                    .font(.headline)
+                            }
+                            .padding(5)
+                        }
                     }
                 }
-            }
-            .navigationTitle("Your Lists")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddList = true }) {
-                        Image(systemName: "plus")
-                    }
+                .listStyle(.insetGrouped)
+                
+                Button(action: {
+                    showingAlert = true // ✅ Show the alert for naming
+                }) {
+                    Label("Create List", systemImage: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.blue)
+                        .clipShape(Capsule())
+                        .shadow(radius: 5)
                 }
+                .padding()
             }
-            .sheet(isPresented: $showingAddList) {
-                AddShoppingListView(viewModel: viewModel)
+            .navigationTitle("ListyWisty")
+            .alert("Name your list", isPresented: $showingAlert) {
+                TextField("Enter list Name", text: $newListName)
+                Button("Create", action: createList) // ✅ Calls `createList()`
+                Button("Cancel", role: .cancel) { newListName = "" }
+            }
+            .navigationDestination(item: $selectedList) { list in
+                ShoppingListDetailView(list: list) // ✅ Auto-navigate after creation
             }
         }
+    }
+    
+    private func createList() {
+        guard !newListName.isEmpty else { return }
+        let newList = viewModel.addList(name: newListName)
+        selectedList = newList // ✅ Triggers navigation
+        newListName = ""
     }
 }
 
