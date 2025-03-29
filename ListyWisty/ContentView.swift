@@ -19,7 +19,7 @@ struct ContentView: View {
             VStack  {
                 List {
                     ForEach(viewModel.lists) { list in
-                        NavigationLink(destination: ShoppingListDetailView(list: list)) {
+                        NavigationLink(destination: ShoppingListDetailView(viewModel: viewModel, list: list)) {
                             HStack {
                                 Image(systemName: "cart")
                                     .foregroundColor(.blue)
@@ -52,7 +52,7 @@ struct ContentView: View {
                 Button("Cancel", role: .cancel) { newListName = "" }
             }
             .navigationDestination(item: $selectedList) { list in
-                ShoppingListDetailView(list: list) // ✅ Auto-navigate after creation
+                ShoppingListDetailView(viewModel: viewModel, list: list) // ✅ Auto-navigate after creation
             }
         }
     }
