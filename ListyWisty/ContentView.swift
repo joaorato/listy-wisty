@@ -57,7 +57,7 @@ struct ContentView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGray6).ignoresSafeArea())
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Your Lists")
             .alert("Name your list", isPresented: $showingAlert) {
                 TextField("Enter list Name", text: $newListName)

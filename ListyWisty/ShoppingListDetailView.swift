@@ -22,10 +22,6 @@ struct ShoppingListDetailView: View {
                         Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
                             .foregroundColor(item.isChecked ? .green : .blue)
                             .font(.title2)
-                            .onTapGesture {
-                                // Toggle item using the list's method
-                                list.toggleItem(id: item.id)
-                            }
                         
                         Text(item.name)
                             .font(.body)

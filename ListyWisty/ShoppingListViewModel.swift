@@ -21,6 +21,17 @@ class ShoppingListViewModel: ObservableObject {
     
     // --- SAVE Function ---
     func saveLists() {
+        print("💾 Attempting to save lists...")
+        // --- Debug Print Start ---
+        if let listToDebug = lists.first, let itemToDebug = listToDebug.items.first {
+             print("   Saving List '\(listToDebug.name)', First Item '\(itemToDebug.name)', isChecked: \(itemToDebug.isChecked)")
+        } else if let listToDebug = lists.first {
+            print("   Saving List '\(listToDebug.name)', No items yet.")
+        } else {
+             print("   Saving: No lists to save.")
+        }
+        // --- Debug Print End ---
+        
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted // Makes JSON readable
 
@@ -40,11 +51,22 @@ class ShoppingListViewModel: ObservableObject {
             print("ℹ️ No save file found, starting fresh.")
             return // No file exists yet
         }
-
+        print("💾 Attempting to load lists from: \(dataFileURL.path)")
         do {
             let data = try Data(contentsOf: dataFileURL)
             let decoder = JSONDecoder()
-            lists = try decoder.decode([ShoppingList].self, from: data)
+            let loadedLists = try decoder.decode([ShoppingList].self, from: data)
+            
+            // --- Debug Print Start ---
+            if let listToDebug = loadedLists.first, let itemToDebug = listToDebug.items.first {
+                 print("   Loaded List '\(listToDebug.name)', First Item '\(itemToDebug.name)', isChecked: \(itemToDebug.isChecked)")
+            } else if let listToDebug = loadedLists.first {
+               print("   Loaded List '\(listToDebug.name)', No items yet.")
+            } else {
+                 print("   Loaded: No lists found in file.")
+            }
+            // --- Debug Print End ---
+            self.lists = loadedLists // Assign to @Published property
             print("✅ Lists loaded successfully.")
         } catch {
             print("❌ Error loading lists: \(error.localizedDescription)")
