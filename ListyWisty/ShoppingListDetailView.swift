@@ -149,7 +149,25 @@ struct ShoppingListDetailView: View {
         }
         .navigationTitle(list.name)
         .toolbar{
-            // Toolbar button for list deletion
+            // Toolbar for total price
+            ToolbarItem(placement: .navigationBarTrailing) {
+                // Use the currency formatter to display the total
+                Text(formatPriceForDisplay(list.totalPrice))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Toolbar for editing list
+            ToolbarItem(placement: .navigationBarTrailing) {
+                 Button {
+                     editableListName = list.name // Pre-fill state
+                     showingEditTitleAlert = true
+                 } label: {
+                     Image(systemName: "pencil.circle") // Or "info.circle"
+                 }
+             }
+            
+            // Toolbar button for deleting list
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     // Show confirmation alert
@@ -159,14 +177,7 @@ struct ShoppingListDetailView: View {
                         .foregroundColor(.red)
                 }
             }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                 Button {
-                     editableListName = list.name // Pre-fill state
-                     showingEditTitleAlert = true
-                 } label: {
-                     Image(systemName: "pencil.circle") // Or "info.circle"
-                 }
-             }
+            
         }
         .alert("Delete List?", isPresented: $showingDeleteConfirmation) {
             Button("Delete", role: .destructive) {

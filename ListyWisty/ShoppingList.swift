@@ -49,6 +49,17 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         }
     }
     
+    // Computed propery for total price
+    var totalPrice: Decimal {
+        // Use reduce to sum up the prices.
+        // Treat items with nil price as 0 for the total calculation
+        // FUTURE: When quantity is added, this calculation will change to:
+        // sum += (item.oruce ?? .zero) * Decimal(item.quantity)
+        items.reduce(Decimal.zero) { sum, item in
+            sum + (item.price ?? .zero) // Add item's price, or 0 if nil
+        }
+    }
+    
     
     // MARK: - Item Management Methods
     func addItem(name: String) {
