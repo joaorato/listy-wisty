@@ -67,6 +67,13 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         }
     }
     
+    func updateItem(id: UUID, newName: String, newPrice: Decimal?) {
+        if let index = items.firstIndex(where: { $0.id == id }) {
+            items[index].name = newName
+            items[index].price = newPrice
+        }
+    }
+    
     func deleteItems(at offsets: IndexSet) {
         // We need to map the offsets from the *sorted* view back to the original `items` array
         // This is safer if sorting logic becomes complex

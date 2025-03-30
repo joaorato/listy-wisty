@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5A3061132D99B25400E3E922 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 5A3061112D99B24B00E3E922 /* README.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		5A3060E62D985D4F00E3E922 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		5A3060D52D985D4E00E3E922 /* ListyWisty.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ListyWisty.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A3060E52D985D4F00E3E922 /* ListyWistyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ListyWistyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A3060EF2D985D4F00E3E922 /* ListyWistyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ListyWistyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A3061112D99B24B00E3E922 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -78,6 +83,7 @@
 				5A3060D72D985D4E00E3E922 /* ListyWisty */,
 				5A3060E82D985D4F00E3E922 /* ListyWistyTests */,
 				5A3060F22D985D4F00E3E922 /* ListyWistyUITests */,
+				5A3061112D99B24B00E3E922 /* README.md */,
 				5A3060D62D985D4E00E3E922 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -212,6 +218,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A3061132D99B25400E3E922 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

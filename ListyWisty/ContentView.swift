@@ -17,16 +17,22 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack  {
-                List {
-                    // --- Check if lists are empty ---
-                    if viewModel.lists.isEmpty {
-                        ContentUnavailableView(
-                            "No Lists Yet",
-                            systemImage: "list.bullet.clipboard",
-                            description: Text("Tap the button below to create your first list.")
-                        )
-                        .listRowBackground(Color.clear)
-                    } else {
+                
+                // if there are no lists show ContentUnavailableView instead
+                if viewModel.lists.isEmpty {
+                    Spacer()
+                    ContentUnavailableView(
+                        "No Lists Yet",
+                        systemImage: "list.bullet.clipboard",
+                        description: Text("Tap the button below to create your first list.")
+                    )
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                    .listRowBackground(Color.clear)
+                    
+                    Spacer()
+                } else {
+                    List {
                         ForEach(viewModel.lists) { list in
                             NavigationLink(destination: ShoppingListDetailView(viewModel: viewModel, list: list)) {
                                 HStack {
@@ -38,11 +44,9 @@ struct ContentView: View {
                                 .padding(5)
                             }
                         }
-                        // list row separator styling (iOS 15+)
-                        //.listRowSeparator(.hidden)
                     }
+                    .listStyle(.insetGrouped)
                 }
-                .listStyle(.insetGrouped)
                 
                 Button(action: {
                     showingAlert = true // ✅ Show the alert for naming
