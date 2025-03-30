@@ -39,6 +39,7 @@ struct ShoppingListDetailView: View {
                     .contentShape(Rectangle()) // Make entire row tappable area
                     .onTapGesture {
                         list.toggleItem(id: item.id)
+                        viewModel.listDidChange() // Trigger save
                     }
                 }
                 .onDelete(perform: deleteItem) // Enable swipe-to-delete
@@ -52,6 +53,7 @@ struct ShoppingListDetailView: View {
                 
                 Button(action: {
                     list.addItem(name: newItemName)
+                    viewModel.listDidChange() // Trigger save
                     newItemName = "" // Clear input
                 }) {
                     Image(systemName: "plus.circle.fill")
@@ -92,5 +94,6 @@ struct ShoppingListDetailView: View {
     // Deleting item
     private func deleteItem(at offsets: IndexSet) {
         list.deleteItems(at: offsets)
+        viewModel.listDidChange() // Trigger save
     }
 }

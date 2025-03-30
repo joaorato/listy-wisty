@@ -6,13 +6,16 @@
 //
 
 import SwiftUI
+import Foundation
 
-class ShoppingList: ObservableObject, Identifiable, Hashable {
-    let id = UUID()
+class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
     @Published var name: String
     @Published var items: [ShoppingItem]
     
-    init(name: String, items: [ShoppingItem] = []) {
+    let id: UUID
+    
+    init(id: UUID = UUID(), name: String, items: [ShoppingItem] = []) {
+        self.id = id
         self.name = name
         self.items = items
     }
@@ -46,9 +49,11 @@ class ShoppingList: ObservableObject, Identifiable, Hashable {
         }
     }
     
+    
+    // MARK: - Item Management Methods
     func addItem(name: String) {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let newItem = ShoppingItem(name)
+        let newItem = ShoppingItem(name: name)
         // Append ensures new unchecked items appear at the end of the unchecked section
         items.append(newItem)
     }
@@ -76,5 +81,31 @@ class ShoppingList: ObservableObject, Identifiable, Hashable {
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+    }
+    
+    // MARK: - Codable Conformance (Manual Implementation)
+
+    // Define coding keys to map properties to JSON keys
+    enum CodingKeys: String, CodingKey {
+        case id, name, items
+    }
+    
+    // Initializer for decoding from JSON
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Decode regular properties directly
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        items = try container.decode([ShoppingItem].self, forKey: .items)
+        // Note: @Published properties are initialized with decoded values
+    }
+    
+    // Function for encoding to JSON
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        // Encode properties directly
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(items, forKey: .items)
     }
 }

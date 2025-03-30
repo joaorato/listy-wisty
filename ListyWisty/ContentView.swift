@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @ObservedObject var viewModel = ShoppingListViewModel()
+    @StateObject var viewModel = ShoppingListViewModel()
     @State private var newListName = ""
     @State private var showingAlert = false
     @State private var selectedList: ShoppingList? // ✅ Track newly created list
@@ -18,16 +18,28 @@ struct ContentView: View {
         NavigationStack {
             VStack  {
                 List {
-                    ForEach(viewModel.lists) { list in
-                        NavigationLink(destination: ShoppingListDetailView(viewModel: viewModel, list: list)) {
-                            HStack {
-                                Image(systemName: "cart")
-                                    .foregroundColor(.blue)
-                                Text(list.name)
-                                    .font(.headline)
+                    // --- Check if lists are empty ---
+                    if viewModel.lists.isEmpty {
+                        ContentUnavailableView(
+                            "No Lists Yet",
+                            systemImage: "list.bullet.clipboard",
+                            description: Text("Tap the button below to create your first list.")
+                        )
+                        .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(viewModel.lists) { list in
+                            NavigationLink(destination: ShoppingListDetailView(viewModel: viewModel, list: list)) {
+                                HStack {
+                                    Image(systemName: "cart")
+                                        .foregroundColor(.blue)
+                                    Text(list.name)
+                                        .font(.headline)
+                                }
+                                .padding(5)
                             }
-                            .padding(5)
                         }
+                        // list row separator styling (iOS 15+)
+                        //.listRowSeparator(.hidden)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -45,7 +57,8 @@ struct ContentView: View {
                 }
                 .padding()
             }
-            .navigationTitle("ListyWisty")
+            .background(Color(.systemGray6).ignoresSafeArea())
+            .navigationTitle("Your Lists")
             .alert("Name your list", isPresented: $showingAlert) {
                 TextField("Enter list Name", text: $newListName)
                 Button("Create", action: createList) // ✅ Calls `createList()`
