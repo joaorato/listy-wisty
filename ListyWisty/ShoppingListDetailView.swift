@@ -21,20 +21,31 @@ struct ShoppingListDetailView: View {
     @State private var showingEditTitleAlert = false
     @State private var editableListName: String = ""
     
+    // Formatter for DISPLAYING currency
     private var currencyFormatter: NumberFormatter {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.locale = Locale.current
         formatter.currencyCode = "EUR"
+        formatter.generatesDecimalNumbers = true
+        return formatter
+    }
+    
+    // Formatter for EDITING/PARSING decimal numbers (no currency symbol)
+    private var decimalFormatter: NumberFormatter {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale.current
+        formatter.generatesDecimalNumbers = true
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
         return formatter
     }
     
     var body: some View {
         VStack {
             List {
-                ForEach(list.sortedItems) { item in
-                    let _ = print("Rendering row for \(item.name). Is it editing target? \(item.id == editingItemID)")
-                    
+                ForEach(list.sortedItems) { item in                    
                     // --- EDITING STATE ---
                     if item.id == editingItemID {
                         VStack(alignment: .leading) {
@@ -77,7 +88,7 @@ struct ShoppingListDetailView: View {
                                 
                                 // Display formatted price if available
                                 if let price = item.price {
-                                    Text(formatPrice(price))
+                                    Text(formatPriceForDisplay(price))
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                 }
@@ -187,7 +198,7 @@ struct ShoppingListDetailView: View {
     }
     
     // --- Helper Functions ---
-    private func formatPrice(_ price: Decimal?) -> String {
+    private func formatPriceForDisplay(_ price: Decimal?) -> String {
         guard let price = price else { return "" }
         // Convert Decimal to NSDecimalNumber for NumberFormatter
         return currencyFormatter.string(from: price as NSDecimalNumber) ?? ""
@@ -197,39 +208,103 @@ struct ShoppingListDetailView: View {
         print("--- Attempting to start editing item: \(item.name) (ID: \(item.id)) ---")
         editingItemID = item.id
         itemEditText = item.name
-        itemEditPrice = item.price?.description ?? ""
+        // Format the price using the DECIMAL formatter for the text field
+        if let price = item.price {
+            itemEditPrice = decimalFormatter.string(for: price) ?? ""
+            print("   Populating itemEditPrice with formatted string: '\(itemEditPrice)' using locale \(decimalFormatter.locale.identifier)")
+        } else {
+            itemEditPrice = ""
+            print("   Populating itemEditPrice with empty string (no price).")
+        }
         print("   Set editingItemID to: \(String(describing: editingItemID))")
     }
     
     private func commitItemEdit() {
         guard let editingID = editingItemID else { return }
-        
+        print("--- Committing Edit for Item ID: \(editingID) ---")
+        print("   Name field: '\(itemEditText)'")
+        print("   Price field: '\(itemEditPrice)'")
+
+
         // Find the *actual* index in the original list.items array
-        if let index = list.items.firstIndex(where: { $0.id == editingID }){
-            // Validate and update
-            let newName = itemEditText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !newName.isEmpty {
-                list.items[index].name = newName
-            }
-            
-            // Convert price string back to Decimal?
-            if itemEditPrice.isEmpty {
-                list.items[index].price = nil
-            } else {
-                // Use a formatter that handles locale-specific separators (e.g., "," vs ".")
-                // For simplicity here, assuming Decimal(string:) works for basic cases
-                list.items[index].price = Decimal(string: itemEditPrice)
-            }
-            
-            // Important: Notify ViewModel AFTER update
-            viewModel.listDidChange()
+        guard let index = list.items.firstIndex(where: { $0.id == editingID }) else {
+             print("   ERROR: Could not find item with ID \(editingID) in list.items")
+             resetEditingState() // Reset state even if item not found (shouldn't happen)
+             return
         }
-        
-        // Reset editing state
+
+        var needsSave = false
+        let originalName = list.items[index].name
+        let originalPrice = list.items[index].price
+
+        // --- Update Name ---
+        let newName = itemEditText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !newName.isEmpty && newName != originalName {
+            list.items[index].name = newName
+            print("   Updated Name from '\(originalName)' to '\(newName)'")
+            needsSave = true
+        } else if newName.isEmpty {
+             print("   Name field was empty, not updating name.")
+        } else {
+            print("   Name unchanged ('\(originalName)').")
+        }
+
+        // --- Update Price ---
+        let priceString = itemEditPrice.trimmingCharacters(in: .whitespacesAndNewlines)
+        var parsedDecimal: Decimal? = nil
+
+        if priceString.isEmpty {
+            print("   Price string is empty.")
+            // If the original price was not nil, this is a change (setting to nil)
+            if originalPrice != nil {
+                parsedDecimal = nil
+                print("   Setting price to nil.")
+            } else {
+                // Price was nil and is still nil (empty string) - no change
+                 print("   Price remains nil.")
+            }
+        } else {
+            // Attempt to parse using the DECIMAL formatter
+            print("   Attempting to parse price string '\(priceString)' using locale \(decimalFormatter.locale.identifier)...")
+            if let number = decimalFormatter.number(from: priceString) {
+                parsedDecimal = number.decimalValue
+                print("   Parse SUCCESS: \(parsedDecimal!)")
+            } else {
+                print("   Parse FAILED for string '\(priceString)'. Keeping original price.")
+                // Keep original price if parsing fails - don't set to nil or invalid value
+                parsedDecimal = originalPrice
+                // Optionally, you could show an error to the user here
+            }
+        }
+
+        // Only update and trigger save if the *parsed* price is different from original
+        if originalPrice != parsedDecimal {
+            list.items[index].price = parsedDecimal
+            print("   Updated Price from '\(String(describing: originalPrice))' to '\(String(describing: parsedDecimal))'")
+            needsSave = true
+        } else {
+             print("   Price unchanged ('\(String(describing: originalPrice))').")
+        }
+
+
+        // --- Trigger Save and Reset State ---
+        if needsSave {
+            print("   Changes detected, triggering save.")
+            viewModel.listDidChange()
+        } else {
+             print("   No changes detected, save not triggered.")
+        }
+
+        resetEditingState()
+    }
+
+    // Helper to reset editing state variables
+    private func resetEditingState() {
         editingItemID = nil
         itemEditText = ""
         itemEditPrice = ""
         hideKeyboard()
+         print("--- Editing State Reset ---")
     }
     
     // Deleting item

@@ -69,8 +69,31 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
     
     func updateItem(id: UUID, newName: String, newPrice: Decimal?) {
         if let index = items.firstIndex(where: { $0.id == id }) {
-            items[index].name = newName
-            items[index].price = newPrice
+            var changed = false
+            let trimmedNewName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Check if update is actually needed before sending notification
+            if !trimmedNewName.isEmpty && items[index].name != trimmedNewName {
+                items[index].name = trimmedNewName
+                changed = true
+            }
+            if items[index].price != newPrice {
+                items[index].price = newPrice
+                changed = true
+            }
+            
+            if changed {
+                // Send notification *once* if any part changed
+                objectWillChange.send()
+            }
+        }
+    }
+    
+    func updateName(newName: String) {
+        let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedName.isEmpty && self.name != trimmedName {
+            objectWillChange.send()
+            self.name = trimmedName
         }
     }
     

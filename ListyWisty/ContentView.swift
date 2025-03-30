@@ -62,7 +62,7 @@ struct ContentView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("Your Lists")
+            .navigationTitle("Your ListyWisties")
             .alert("Name your list", isPresented: $showingAlert) {
                 TextField("Enter list Name", text: $newListName)
                 Button("Create", action: createList) // ✅ Calls `createList()`
