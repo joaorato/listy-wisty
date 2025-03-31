@@ -12,16 +12,6 @@ struct ContentView: View {
     @State private var newListName = ""
     @State private var showingAlert = false
     @State private var selectedList: ShoppingList? // ✅ Track newly created list
-
-    // --- Formatter for displaying currency in this view ---
-    private var currencyFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = Locale.current // Use current locale
-        // formatter.currencyCode = "EUR" // Optional: Force a specific currency
-        formatter.generatesDecimalNumbers = true
-        return formatter
-    }()
     
     var body: some View {
         NavigationStack {
@@ -46,26 +36,7 @@ struct ContentView: View {
                             NavigationLink {
                                 ShoppingListDetailView(viewModel: viewModel, list: list)
                             } label: {
-                                HStack {
-                                    // Left side: Icon and Name
-                                    Image(systemName: "cart")
-                                        .foregroundColor(.blue)
-                                    Text(list.name)
-                                        .font(.headline)
-                                        // Allow name to shrink if needed, but give priority
-                                        .layoutPriority(1)
-                                        .lineLimit(1) // Prevent name wrapping interfering too
-                                    
-                                    Spacer() // Pushes the total price to the right
-                                    
-                                    // Right side: Formatted Total Price
-                                    // Use the totalPrice computed property
-                                    Text(formatPrice(list.totalPrice))
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1) // Ensure total doesn't wrap oddly
-                                }
-                                .padding(.vertical, 5)
+                                ShoppingListRowView(list: list)
                             }
                         }
                     }
@@ -96,16 +67,6 @@ struct ContentView: View {
                 ShoppingListDetailView(viewModel: viewModel, list: list) // ✅ Auto-navigate after creation
             }
         }
-    }
-    
-    private func formatPrice(_ price: Decimal?) -> String {
-        guard let price = price, price != .zero else {
-            // Optionally return empty string or "-" if total is zero
-            // return ""
-             return currencyFormatter.string(from: 0) ?? "" // Display "€0.00" etc.
-        }
-        // Convert Decimal to NSDecimalNumber for NumberFormatter
-        return currencyFormatter.string(from: price as NSDecimalNumber) ?? ""
     }
     
     private func createList() {

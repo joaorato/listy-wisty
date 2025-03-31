@@ -21,31 +21,10 @@ struct ShoppingListDetailView: View {
     @State private var showingEditTitleAlert = false
     @State private var editableListName: String = ""
     
-    // Formatter for DISPLAYING currency
-    private var currencyFormatter: NumberFormatter {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = Locale.current
-        formatter.currencyCode = "EUR"
-        formatter.generatesDecimalNumbers = true
-        return formatter
-    }
-    
-    // Formatter for EDITING/PARSING decimal numbers (no currency symbol)
-    private var decimalFormatter: NumberFormatter {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale.current
-        formatter.generatesDecimalNumbers = true
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        return formatter
-    }
-    
     var body: some View {
         VStack {
             List {
-                ForEach(list.sortedItems) { item in                    
+                ForEach(list.sortedItems) { item in
                     // --- EDITING STATE ---
                     if item.id == editingItemID {
                         VStack(alignment: .leading) {
@@ -88,7 +67,7 @@ struct ShoppingListDetailView: View {
                                 
                                 // Display formatted price if available
                                 if let price = item.price {
-                                    Text(formatPriceForDisplay(price))
+                                    Text(Formatters.formatPriceForDisplay(price))
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                 }
@@ -152,7 +131,7 @@ struct ShoppingListDetailView: View {
             // Toolbar for total price
             ToolbarItem(placement: .navigationBarTrailing) {
                 // Use the currency formatter to display the total
-                Text(formatPriceForDisplay(list.totalPrice))
+                Text(Formatters.formatPriceForDisplay(list.totalPrice))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -209,11 +188,6 @@ struct ShoppingListDetailView: View {
     }
     
     // --- Helper Functions ---
-    private func formatPriceForDisplay(_ price: Decimal?) -> String {
-        guard let price = price else { return "" }
-        // Convert Decimal to NSDecimalNumber for NumberFormatter
-        return currencyFormatter.string(from: price as NSDecimalNumber) ?? ""
-    }
     
     private func startEditingItem(_ item: ShoppingItem) {
         print("--- Attempting to start editing item: \(item.name) (ID: \(item.id)) ---")
@@ -221,8 +195,8 @@ struct ShoppingListDetailView: View {
         itemEditText = item.name
         // Format the price using the DECIMAL formatter for the text field
         if let price = item.price {
-            itemEditPrice = decimalFormatter.string(for: price) ?? ""
-            print("   Populating itemEditPrice with formatted string: '\(itemEditPrice)' using locale \(decimalFormatter.locale.identifier)")
+            itemEditPrice = Formatters.decimalInputFormatter.string(for: price) ?? ""
+            print("   Populating itemEditPrice with formatted string: '\(itemEditPrice)' using locale \(Formatters.decimalInputFormatter.locale.identifier)")
         } else {
             itemEditPrice = ""
             print("   Populating itemEditPrice with empty string (no price).")
@@ -276,8 +250,8 @@ struct ShoppingListDetailView: View {
             }
         } else {
             // Attempt to parse using the DECIMAL formatter
-            print("   Attempting to parse price string '\(priceString)' using locale \(decimalFormatter.locale.identifier)...")
-            if let number = decimalFormatter.number(from: priceString) {
+            print("   Attempting to parse price string '\(priceString)' using locale \(Formatters.decimalInputFormatter.locale.identifier)...")
+            if let number = Formatters.decimalInputFormatter.number(from: priceString) {
                 parsedDecimal = number.decimalValue
                 print("   Parse SUCCESS: \(parsedDecimal!)")
             } else {
