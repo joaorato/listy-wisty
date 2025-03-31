@@ -108,12 +108,11 @@ struct ShoppingListDetailView: View {
                 TextField("New item...", text: $newItemName)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding(.leading)
+                    .onSubmit {
+                        addItemAction()
+                    }
                 
-                Button(action: {
-                    list.addItem(name: newItemName)
-                    viewModel.listDidChange() // Trigger save
-                    newItemName = "" // Clear input
-                }) {
+                Button(action: addItemAction) {
                     Image(systemName: "plus.circle.fill")
                         .foregroundColor(.blue)
                         .font(.title)
@@ -188,6 +187,12 @@ struct ShoppingListDetailView: View {
     }
     
     // --- Helper Functions ---
+    
+    private func addItemAction() {
+        list.addItem(name: newItemName)
+        viewModel.listDidChange() // Trigger save
+        newItemName = "" // Clear input
+    }
     
     private func startEditingItem(_ item: ShoppingItem) {
         print("--- Attempting to start editing item: \(item.name) (ID: \(item.id)) ---")
