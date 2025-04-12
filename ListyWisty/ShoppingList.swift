@@ -20,33 +20,22 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         self.items = items
     }
     
-    // Computed property for sorted items
-    var sortedItems: [ShoppingItem] {
-        items.sorted{ (item1, item2) -> Bool in
-            // Rule 1: Uncheked items come before checked items
-            if !item1.isChecked && item2.isChecked {
-                return true
-            }
-            if item1.isChecked && !item2.isChecked {
-                return false
-            }
-            
-            // Rule 2: If both are checked, sort by timestamp descending (newest first)
-            if item1.isChecked && item2.isChecked {
-                // Handle potential nil timestamps defensively, though they should exist if checked
-                let ts1 = item1.checkedTimestamp ?? Date.distantPast
-                let ts2 = item2.checkedTimestamp ?? Date.distantPast
-                return ts1 > ts2 // Most recent checked item first
-            }
-            
-            // Rule 3: If both are unchecked, maintain their relative order (or sort alphabetically, etc.)
-            // For now, we rely on the stability of the sort if they are equal according to rules above.
-            // If we want alphabetical for unchecked:
-            // if !item1.isChecked && !item2.isChecked {
-            //     return item1.name < item2.name
-            // }
-            return false // Keep relative order for unchecked items
+    // --- Sorting Logic Helper (can be static or private) ---
+    // Encapsulates the comparison logic used both for display (if needed elsewhere)
+    // and for finding insertion points.
+    private static func sortPredicate(item1: ShoppingItem, item2: ShoppingItem) -> Bool {
+        if !item1.isChecked && item2.isChecked { return true } // Unchecked before checked
+        if item1.isChecked && !item2.isChecked { return false } // Checked after unchecked
+
+        if item1.isChecked && item2.isChecked { // Both checked: Sort by timestamp DESC (newest first)
+            let ts1 = item1.checkedTimestamp ?? Date.distantPast
+            let ts2 = item2.checkedTimestamp ?? Date.distantPast
+            return ts1 > ts2
         }
+
+        // Both unchecked: maintain relative order (or add other criteria like name)
+        // Returning false here relies on sort stability or original order for unchecked items.
+        return false
     }
     
     // Computed propery for total price
@@ -70,32 +59,45 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
     }
     
     func toggleItem(id: UUID) {
-        if let index = items.firstIndex(where: { $0.id == id }) {
-            items[index].isChecked.toggle()
-            // Update timestamp when checked, clear when unchecked
-            items[index].checkedTimestamp = items[index].isChecked ? Date() : nil
-            // Note: Modifying items array directly triggers @Published update
-        }
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+
+        // 1. Toggle the state and timestamp
+        items[index].isChecked.toggle()
+        items[index].checkedTimestamp = items[index].isChecked ? Date() : nil
+
+        // 2. Get the item that was just modified
+        let toggledItem = items[index]
+
+        // 3. Remove the item temporarily to find its new correct position
+        items.remove(at: index)
+
+        // 4. Find the correct insertion index based on the sorting rules
+        let newIndex = items.firstIndex { existingItem in
+            // We want to insert 'toggledItem' *before* the first 'existingItem'
+            // that should come *after* 'toggledItem' according to our sort predicate.
+            // The sort predicate returns 'true' if item1 should come before item2.
+            // So, we find the first existingItem where sortPredicate(toggledItem, existingItem) is true.
+            Self.sortPredicate(item1: toggledItem, item2: existingItem)
+        } ?? items.endIndex // If no such item exists, insert at the end
+
+        // 5. Insert the item at its new sorted position
+        items.insert(toggledItem, at: newIndex)
+
+        // @Published takes care of notifying observers about the array change.
+        // The View observing 'list' (ShoppingListDetailView) and calling
+        // viewModel.listDidChange() will handle saving.
     }
     
     func updateItem(id: UUID, newName: String, newPrice: Decimal?) {
         if let index = items.firstIndex(where: { $0.id == id }) {
-            var changed = false
             let trimmedNewName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
             
             // Check if update is actually needed before sending notification
             if !trimmedNewName.isEmpty && items[index].name != trimmedNewName {
                 items[index].name = trimmedNewName
-                changed = true
             }
             if items[index].price != newPrice {
                 items[index].price = newPrice
-                changed = true
-            }
-            
-            if changed {
-                // Send notification *once* if any part changed
-                objectWillChange.send()
             }
         }
     }
@@ -103,16 +105,16 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
     func updateName(newName: String) {
         let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedName.isEmpty && self.name != trimmedName {
-            objectWillChange.send()
             self.name = trimmedName
         }
     }
     
     func deleteItems(at offsets: IndexSet) {
-        // We need to map the offsets from the *sorted* view back to the original `items` array
-        // This is safer if sorting logic becomes complex
-        let idsToDelete = offsets.map { sortedItems[$0].id }
-        items.removeAll { idsToDelete.contains($0.id) }
+        items.remove(atOffsets: offsets)
+    }
+    
+    func moveItem(from source: IndexSet, to destination: Int) {
+        items.move(fromOffsets: source, toOffset: destination)
     }
     
     // MARK: - Conformance to Hashable

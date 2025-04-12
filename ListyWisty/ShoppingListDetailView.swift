@@ -21,10 +21,12 @@ struct ShoppingListDetailView: View {
     @State private var showingEditTitleAlert = false
     @State private var editableListName: String = ""
     
+    @Environment(\.editMode) var editMode
+    
     var body: some View {
         VStack {
             List {
-                ForEach(list.sortedItems) { item in
+                ForEach(list.items) { item in
                     // --- EDITING STATE ---
                     if item.id == editingItemID {
                         VStack(alignment: .leading) {
@@ -80,7 +82,7 @@ struct ShoppingListDetailView: View {
                                     .onEnded { _ in // Use .onEnded for TapGesture within highPriority
                                         print("High priority edit gesture hit") // Log for this gesture
                                         // Only start editing if not already editing this specific item
-                                        if editingItemID != item.id {
+                                        if !(editMode?.wrappedValue.isEditing ?? false) && editingItemID != item.id {
                                             startEditingItem(item)
                                         }
                                     }
@@ -100,9 +102,11 @@ struct ShoppingListDetailView: View {
                         }
                     }
                 }
+                .onMove(perform: moveItem) // Enable moving of items
                 .onDelete(perform: deleteItem) // Enable swipe-to-delete
             }
             .listStyle(.plain) // ✅ Minimalist list style
+            .environment(\.editMode, editMode)
             
             HStack {
                 TextField("New item...", text: $newItemName)
@@ -127,12 +131,17 @@ struct ShoppingListDetailView: View {
         }
         .navigationTitle(list.name)
         .toolbar{
+            
             // Toolbar for total price
             ToolbarItem(placement: .navigationBarTrailing) {
                 // Use the currency formatter to display the total
                 Text(Formatters.formatPriceForDisplay(list.totalPrice))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) { // Common placement
+                EditButton() // <<< ADD HERE
             }
             
             // Toolbar for editing list
@@ -182,7 +191,9 @@ struct ShoppingListDetailView: View {
         .onTapGesture { // Dismiss keyboard/editing if tapped outside list
             if editingItemID != nil {
                 commitItemEdit() // maybe dismiss without saving instead of this
-            }
+            } else {
+                hideKeyboard() // Just hide keyboard if not inline editing
+           }
         }
     }
     
@@ -195,6 +206,7 @@ struct ShoppingListDetailView: View {
     }
     
     private func startEditingItem(_ item: ShoppingItem) {
+        guard editingItemID == nil && !(editMode?.wrappedValue.isEditing ?? false) else { return }
         print("--- Attempting to start editing item: \(item.name) (ID: \(item.id)) ---")
         editingItemID = item.id
         itemEditText = item.name
@@ -295,6 +307,13 @@ struct ShoppingListDetailView: View {
         itemEditPrice = ""
         hideKeyboard()
          print("--- Editing State Reset ---")
+    }
+    
+    // Moving item
+    private func moveItem(from source: IndexSet, to destination: Int) {
+        print("Moving item from \(source) to \(destination)")
+        list.moveItem(from: source, to: destination)
+        viewModel.listDidChange() // Trigger save
     }
     
     // Deleting item
