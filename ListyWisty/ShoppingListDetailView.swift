@@ -70,8 +70,10 @@ struct ShoppingListDetailView: View {
                                     TapGesture()
                                         .onEnded { _ in
                                             print("High priority TOGGLE gesture hit")
-                                            list.toggleItem(id: item.id)
-                                            viewModel.listDidChange()
+                                            withAnimation {
+                                                list.toggleItem(id: item.id)
+                                                viewModel.listDidChange()
+                                            }
                                         }
                                 )
                             
@@ -117,8 +119,10 @@ struct ShoppingListDetailView: View {
                         .swipeActions(edge: .leading, allowsFullSwipe: true) { // Swipe from left-to-right
                             Button {
                                 print("Swipe TOGGLE action triggered (full or tap)")
-                                list.toggleItem(id: item.id)
-                                viewModel.listDidChange()
+                                withAnimation {
+                                    list.toggleItem(id: item.id)
+                                    viewModel.listDidChange()
+                                }
                             } label: {
                                 Label("Toggle", systemImage: item.isChecked ? "arrow.uturn.backward.circle" : "checkmark.circle.fill")
                             }
@@ -137,10 +141,17 @@ struct ShoppingListDetailView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding(.leading)
                     .onSubmit {
-                        addItemAction()
+                        withAnimation {
+                            addItemAction()
+                        }
                     }
                 
-                Button(action: addItemAction) {
+                Button(action: {
+                    // --- ANIMATION ---
+                    withAnimation { // Animate the item addition
+                        addItemAction()
+                    }
+                }) {
                     Image(systemName: "plus.circle.fill")
                         .foregroundColor(.blue)
                         .font(.title)
@@ -383,14 +394,18 @@ struct ShoppingListDetailView: View {
     // Moving item
     private func moveItem(from source: IndexSet, to destination: Int) {
         print("Moving item from \(source) to \(destination)")
-        list.moveItem(from: source, to: destination)
-        viewModel.listDidChange() // Trigger save
+        withAnimation {
+            list.moveItem(from: source, to: destination)
+            viewModel.listDidChange() // Trigger save
+        }
     }
     
     // Deleting item
     private func deleteItem(at offsets: IndexSet) {
-        list.deleteItems(at: offsets)
-        viewModel.listDidChange() // Trigger save
+        withAnimation {
+            list.deleteItems(at: offsets)
+            viewModel.listDidChange() // Trigger save
+        }
     }
     
     #if canImport(UIKit)
