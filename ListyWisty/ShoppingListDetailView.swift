@@ -169,19 +169,19 @@ struct ShoppingListDetailView: View {
             
             // --- Conditional Total Price ---
             if supportsPrice { // Only show total for shopping lists
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Text("Total: \(Formatters.formatPriceForDisplay(list.totalPrice))") // Added "Total: " prefix
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
             }
             
-            ToolbarItem(placement: .navigationBarTrailing) { // Common placement
+            ToolbarItem(placement: .topBarTrailing) { // Common placement
                 EditButton() // <<< ADD HERE
             }
             
             // Toolbar for editing list
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                  Button {
                      editableListName = list.name // Pre-fill state
                      showingEditTitleAlert = true
@@ -191,7 +191,7 @@ struct ShoppingListDetailView: View {
              }
             
             // Toolbar button for deleting list
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button(action: {
                     // Show confirmation alert
                     showingDeleteConfirmation = true

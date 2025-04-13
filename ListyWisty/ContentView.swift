@@ -12,6 +12,8 @@ struct ContentView: View {
     @State private var selectedList: ShoppingList? // ✅ Track newly created list
     @State private var showingCreateSheet = false // State to control the sheet
     
+    @Environment(\.editMode) var editMode
+    
     var body: some View {
         NavigationStack {
             VStack  {
@@ -36,8 +38,10 @@ struct ContentView: View {
                                 ShoppingListDetailView(viewModel: viewModel, list: list)
                             } label: {
                                 ShoppingListRowView(list: list)
+                                    .opacity(editMode?.wrappedValue.isEditing ?? false ? 0.7 : 1.0)
                             }
                         }
+                        .onMove(perform: moveList)
                         .onDelete(perform: deleteList)
                     }
                     .listStyle(.insetGrouped)
@@ -75,6 +79,19 @@ struct ContentView: View {
             .navigationDestination(item: $selectedList) { list in
                 ShoppingListDetailView(viewModel: viewModel, list: list) // ✅ Auto-navigate after creation
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { // Place on left
+                    EditButton()
+                }
+                // You might want other toolbar items on the trailing side if needed
+            }
+        }
+    }
+    
+    private func moveList(from source: IndexSet, to destination: Int) {
+        // Use animation for the data change, complementing List's visual move
+        withAnimation {
+            viewModel.moveList(from: source, to: destination)
         }
     }
     
@@ -129,12 +146,12 @@ struct CreateListView: View {
             .navigationTitle("New List")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Create") {
                         createAndDismiss()
                     }

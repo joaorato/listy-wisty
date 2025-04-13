@@ -20,8 +20,8 @@ enum ListType: String, CaseIterable, Identifiable, Codable {
     // User-facing display name
     var displayName: String {
         switch self {
-        case .shopping: return "Shopping List"
-        case .task: return "To-Do List"
+        case .shopping: return "Shopping"
+        case .task: return "To-Do"
         }
     }
 

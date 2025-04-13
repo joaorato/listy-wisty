@@ -93,6 +93,14 @@ class ShoppingListViewModel: ObservableObject {
         saveLists() // Save after deleting
     }
     
+    func moveList(from source: IndexSet, to destination: Int) {
+        print("➡️ Attempting to move lists from \(source) to \(destination)")
+        lists.move(fromOffsets: source, toOffset: destination)
+        // Save the new order immediately
+        saveLists()
+        print("✅ Lists moved and saved.")
+    }
+    
     // public endpoint to trigger a save when something *inside* a list changes
     func listDidChange() {
         print("ℹ️ List content changed, triggering save.")
