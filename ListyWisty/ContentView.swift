@@ -9,9 +9,8 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject var viewModel = ShoppingListViewModel()
-    @State private var newListName = ""
-    @State private var showingAlert = false
     @State private var selectedList: ShoppingList? // ✅ Track newly created list
+    @State private var showingCreateSheet = false // State to control the sheet
     
     var body: some View {
         NavigationStack {
@@ -39,12 +38,13 @@ struct ContentView: View {
                                 ShoppingListRowView(list: list)
                             }
                         }
+                        .onDelete(perform: deleteList)
                     }
                     .listStyle(.insetGrouped)
                 }
                 
                 Button(action: {
-                    showingAlert = true // ✅ Show the alert for naming
+                    showingCreateSheet = true // ✅ Show the alert for naming
                 }) {
                     Label("Create List", systemImage: "plus.circle.fill")
                         .font(.title2)
@@ -58,10 +58,19 @@ struct ContentView: View {
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Your ListyWisties")
-            .alert("Name your list", isPresented: $showingAlert) {
-                TextField("Enter list Name", text: $newListName)
-                Button("Create", action: createList) // ✅ Calls `createList()`
-                Button("Cancel", role: .cancel) { newListName = "" }
+//            .alert("Name your list", isPresented: $showingAlert) {
+//                TextField("Enter list Name", text: $newListName)
+//                Button("Create", action: createList) // ✅ Calls `createList()`
+//                Button("Cancel", role: .cancel) { newListName = "" }
+//            }
+            // --- Sheet for Creating List ---
+            .sheet(isPresented: $showingCreateSheet) {
+                // Pass the viewModel or a closure to handle list creation
+                CreateListView(viewModel: viewModel) { newList in
+                    // Optional: Navigate immediately after creation from sheet
+                    // This logic might need refinement depending on sheet dismissal timing
+                    // selectedList = newList
+                }
             }
             .navigationDestination(item: $selectedList) { list in
                 ShoppingListDetailView(viewModel: viewModel, list: list) // ✅ Auto-navigate after creation
@@ -69,14 +78,93 @@ struct ContentView: View {
         }
     }
     
-    private func createList() {
-        guard !newListName.isEmpty else { return }
-        let newList = viewModel.addList(name: newListName)
-        selectedList = newList // ✅ Triggers navigation
-        newListName = ""
+    // Optional: Swipe-to-delete on ContentView
+    private func deleteList(at offsets: IndexSet) {
+        offsets.forEach { index in
+            guard index < viewModel.lists.count else { return }
+            let listToDelete = viewModel.lists[index]
+            viewModel.deleteList(id: listToDelete.id)
+        }
+    }
+    
+//    private func createList() {
+//        guard !newListName.isEmpty else { return }
+//        let newList = viewModel.addList(name: newListName)
+//        selectedList = newList // ✅ Triggers navigation
+//        newListName = ""
+//    }
+}
+
+// --- New View for the Creation Sheet ---
+struct CreateListView: View {
+    @ObservedObject var viewModel: ShoppingListViewModel
+    var onListCreated: ((ShoppingList) -> Void)? // Optional callback
+
+    @State private var newListName: String = ""
+    @State private var selectedListType: ListType = .shopping // Default selection
+
+    @Environment(\.dismiss) var dismiss
+    
+    @FocusState private var isNameFieldFocused: Bool
+
+    var body: some View {
+        NavigationView { // Embed in NavigationView for title/toolbar
+            Form {
+                TextField("List Name", text: $newListName)
+                    .focused($isNameFieldFocused)
+
+                Picker("List Type", selection: $selectedListType) {
+                    ForEach(ListType.allCases) { type in
+                        // Display type's name and icon in the picker row
+                        HStack {
+                             Image(systemName: type.systemImageName)
+                                 .foregroundColor(type.iconColor)
+                             Text(type.displayName)
+                        }
+                        .tag(type)
+                    }
+                }
+                // Optional: Add more configuration based on type here later
+            }
+            .navigationTitle("New List")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Create") {
+                        createAndDismiss()
+                    }
+                    .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) // Disable if name is empty
+                }
+            }
+            .onAppear {
+                // Delay slightly to ensure view is ready
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    self.isNameFieldFocused = true
+                }
+            }
+        }
+    }
+
+    private func createAndDismiss() {
+        let trimmedName = newListName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        let newList = viewModel.addList(name: trimmedName, listType: selectedListType)
+        onListCreated?(newList) // Call callback if provided
+        dismiss()
     }
 }
 
 #Preview {
     ContentView()
+}
+
+// Optional Preview for the CreateListView
+#Preview("Create List Sheet") {
+    CreateListView(viewModel: ShoppingListViewModel()) // Provide a dummy ViewModel
 }

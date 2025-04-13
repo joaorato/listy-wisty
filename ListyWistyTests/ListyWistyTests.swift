@@ -11,9 +11,23 @@ import Foundation
 
 struct ListyWistyTests {
     
-    // Helper to create a list instance for tests
-    private func createSUT(name: String = "Test List") -> ShoppingList {
-        return ShoppingList(name: name)
+    // Helper to create a list instance for tests (Updated)
+    private func createSUT(name: String = "Test List", type: ListType = .shopping) -> ShoppingList {
+        // Pass the type to the initializer
+        return ShoppingList(name: name, listType: type)
+    }
+    
+    @Test("Add Item - Defaults Quantity to 1")
+    func addItemDefaultsQuantityToOne() async throws {
+        // Arrange
+        let sut = createSUT(type: .shopping) // Use shopping list for quantity test
+
+        // Act
+        sut.addItem(name: "New Item")
+
+        // Assert
+        let addedItem = try #require(sut.items.last)
+        #expect(addedItem.quantity == 1, "Newly added item should have quantity 1 by default")
     }
 
     @Test("Add Item - Increases Count and Has Correct Name/State")
@@ -169,6 +183,38 @@ struct ListyWistyTests {
         #expect(currentNames == ["B", "C", "A"], "Items should be reordered to B, C, A. Got: \(currentNames)")
     }
     
+    @Test("Total Price - Calculates Correctly with Quantity")
+    func totalPriceCalculatesCorrectlyWithQuantity() async throws {
+        // Arrange
+        let sut = createSUT(type: .shopping) // Must be shopping type
+        sut.addItem(name: "Item 1"); sut.items[0].price = 1.50; sut.items[0].quantity = 2 // Qty 2
+        sut.addItem(name: "Item 2"); sut.items[1].price = 2.25; sut.items[1].quantity = 1 // Qty 1
+        sut.addItem(name: "Item 3"); sut.items[2].quantity = 5 // No price, Qty 5 (should not affect total)
+        sut.addItem(name: "Item 4"); sut.items[3].price = 0.50; sut.items[3].quantity = 3 // Qty 3
+
+        // Act
+        let total = sut.totalPrice
+
+        // Assert
+        // Expected: (1.50 * 2) + (2.25 * 1) + (0 * 5) + (0.50 * 3) = 3.00 + 2.25 + 0 + 1.50 = 6.75
+        let expectedTotal = try #require(Decimal(string: "6.75"))
+        #expect(total == expectedTotal, "Total price should factor in quantity. Expected \(expectedTotal), got \(total)")
+    }
+    
+    @Test("Total Price - Is Zero for Non-Shopping Lists")
+    func totalPriceIsZeroForTaskLists() throws {
+        // Arrange
+        let sut = createSUT(type: .task) // Create a Task list
+        sut.addItem(name: "Task 1"); sut.items[0].price = 10.0 // Assign price (should be ignored)
+        sut.items[0].quantity = 2
+
+        // Act
+        let total = sut.totalPrice
+
+        // Assert
+        #expect(total == .zero, "Total price should be zero for non-shopping list types, got \(total)")
+    }
+    
     @Test("Total Price - Calculates Correctly Ignoring Nil Prices")
     func totalPriceCalculatesCorrectly() async throws {
         // Arrange
@@ -185,25 +231,27 @@ struct ListyWistyTests {
         #expect(total == expectedTotal, "Total price should sum non-nil prices. Expected \(expectedTotal), got \(total)")
     }
     
-    @Test("Update Item - Only Name Changes Correctly")
-    func updateItemOnlyName() async throws {
+    @Test("Update Item - Only Name Changes Correctly (Keeps Qty/Price)")
+    func updateItemOnlyNameKeepsQtyPrice() throws {
         // Arrange
-        let sut = createSUT()
-        let originalName = "Old Name"
-        let originalPrice = try #require(Decimal(string: "1.0")) // Define price first
+        let sut = createSUT(type: .shopping)
+        let originalName = "Old Name"; let originalPrice: Decimal? = 1.00; let originalQuantity = 2
         sut.addItem(name: originalName)
-        #expect(sut.items.count == 1) // Ensure item exists before accessing index 0
-        sut.items[0].price = originalPrice // <-- Modify directly in the array
-        let itemID = sut.items[0].id
+        let itemIndex = try #require(sut.items.firstIndex(where: { $0.name == originalName }))
+        sut.items[itemIndex].price = originalPrice
+        sut.items[itemIndex].quantity = originalQuantity
+        let itemID = sut.items[itemIndex].id
         let newName = "New Name"
 
         // Act
-        sut.updateItem(id: itemID, newName: newName, newPrice: originalPrice) // Keep original price
+        // Pass original price and quantity to updateItem
+        sut.updateItem(id: itemID, newName: newName, newPrice: originalPrice, newQuantity: originalQuantity)
 
         // Assert
         let updatedItem = try #require(sut.items.first(where: { $0.id == itemID }))
         #expect(updatedItem.name == newName, "Name should be updated")
         #expect(updatedItem.price == originalPrice, "Price should remain unchanged")
+        #expect(updatedItem.quantity == originalQuantity, "Quantity should remain unchanged")
     }
 
     @Test("Update Item - Only Price Changes Correctly (Value to Value)")
@@ -211,14 +259,16 @@ struct ListyWistyTests {
         // Arrange
         let sut = createSUT()
         let originalName = "Original Name"
+        let originalQuantity = 3
         sut.addItem(name: originalName)
         #expect(sut.items.count == 1)
         sut.items[0].price = try #require(Decimal(string: "1.0")) // <-- Modify directly
+        sut.items[0].quantity = originalQuantity
         let itemID = sut.items[0].id
         let newPrice = try #require(Decimal(string: "2.50"))
 
         // Act
-        sut.updateItem(id: itemID, newName: originalName, newPrice: newPrice) // Keep original name
+        sut.updateItem(id: itemID, newName: originalName, newPrice: newPrice, newQuantity: originalQuantity) // Keep original name
 
         // Assert
         let updatedItem = try #require(sut.items.first(where: { $0.id == itemID }))
@@ -231,14 +281,16 @@ struct ListyWistyTests {
         // Arrange
         let sut = createSUT()
         let originalName = "Original Name"
+        let originalQuantity = 1
         sut.addItem(name: originalName)
         #expect(sut.items.count == 1)
         sut.items[0].price = nil
+        sut.items[0].quantity = originalQuantity
         let itemID = sut.items[0].id
         let newPrice = try #require(Decimal(string: "3.00"))
 
         // Act
-        sut.updateItem(id: itemID, newName: originalName, newPrice: newPrice)
+        sut.updateItem(id: itemID, newName: originalName, newPrice: newPrice, newQuantity: originalQuantity)
 
         // Assert
         let updatedItem = try #require(sut.items.first(where: { $0.id == itemID }))
@@ -251,39 +303,113 @@ struct ListyWistyTests {
         // Arrange
         let sut = createSUT()
         let originalName = "Original Name"
+        let originalQuantity = 4
         sut.addItem(name: originalName)
         #expect(sut.items.count == 1)
         sut.items[0].price = try #require(Decimal(string: "5.00")) // <-- Modify directly
+        sut.items[0].quantity = originalQuantity
         let itemID = sut.items[0].id
 
         // Act
-        sut.updateItem(id: itemID, newName: originalName, newPrice: nil) // Set price to nil
+        sut.updateItem(id: itemID, newName: originalName, newPrice: nil, newQuantity: originalQuantity) // Set price to nil
 
         // Assert
         let updatedItem = try #require(sut.items.first(where: { $0.id == itemID }))
         #expect(updatedItem.name == originalName, "Name should remain unchanged")
         #expect(updatedItem.price == nil, "Price should be updated to nil")
     }
-
-    @Test("Update Item - Both Name and Price Change Correctly")
-    func updateItemBothNameAndPrice() async throws {
+    
+    @Test("Update Item - Only Quantity Changes Correctly")
+    func updateItemOnlyQuantity() throws {
         // Arrange
-        let sut = createSUT()
-        let oldName = "Old Name"
-        sut.addItem(name: oldName)
-        #expect(sut.items.count == 1)
-        sut.items[0].price = try #require(Decimal(string: "1.0")) // <-- Modify directly
-        let itemID = sut.items[0].id
-        let newName = "New Name"
-        let newPrice = try #require(Decimal(string: "9.99"))
+        let sut = createSUT(type: .shopping)
+        let originalName = "Item"; let originalPrice: Decimal? = 5.00; let originalQuantity = 1
+        sut.addItem(name: originalName)
+        let itemIndex = try #require(sut.items.firstIndex(where: { $0.name == originalName }))
+        sut.items[itemIndex].price = originalPrice
+        sut.items[itemIndex].quantity = originalQuantity
+        let itemID = sut.items[itemIndex].id
+        let newQuantity = 3
 
         // Act
-        sut.updateItem(id: itemID, newName: newName, newPrice: newPrice)
+        sut.updateItem(id: itemID, newName: originalName, newPrice: originalPrice, newQuantity: newQuantity)
+
+        // Assert
+        let updatedItem = try #require(sut.items.first(where: { $0.id == itemID }))
+        #expect(updatedItem.name == originalName, "Name should remain unchanged")
+        #expect(updatedItem.price == originalPrice, "Price should remain unchanged")
+        #expect(updatedItem.quantity == newQuantity, "Quantity should be updated")
+    }
+
+    @Test("Update Item - Quantity Does Not Go Below 1")
+    func updateItemQuantityMinimumOne() throws {
+        // Arrange
+        let sut = createSUT(type: .shopping)
+        sut.addItem(name: "Item"); sut.items[0].quantity = 2
+        let itemID = sut.items[0].id
+        let invalidQuantity = 0 // Attempt to set below 1
+        let invalidQuantityNegative = -5 // Attempt to set below 1
+
+        // Act 1: Try setting to 0
+        sut.updateItem(id: itemID, newName: "Item", newPrice: nil, newQuantity: invalidQuantity)
+        let updatedItem1 = try #require(sut.items.first(where: { $0.id == itemID }))
+
+        // Assert 1
+        #expect(updatedItem1.quantity == 1, "Quantity should be capped at 1 when trying to set 0. Got \(updatedItem1.quantity)")
+
+        // Act 2: Try setting to -5
+        sut.updateItem(id: itemID, newName: "Item", newPrice: nil, newQuantity: invalidQuantityNegative)
+        let updatedItem2 = try #require(sut.items.first(where: { $0.id == itemID }))
+
+        // Assert 2
+        #expect(updatedItem2.quantity == 1, "Quantity should be capped at 1 when trying to set negative. Got \(updatedItem2.quantity)")
+    }
+
+
+    @Test("Update Item - Price/Quantity Ignored for Non-Shopping List")
+    func updateItemIgnoresPriceQuantityForTask() throws {
+        // Arrange
+        let sut = createSUT(type: .task) // TASK list
+        let originalName = "Task Name"
+        sut.addItem(name: originalName)
+        sut.items[0].price = 5.00 // Set initial price/qty (should be ignored on update)
+        sut.items[0].quantity = 3
+        let itemID = sut.items[0].id
+        let newName = "Updated Task Name"
+        let attemptedNewPrice: Decimal? = 10.00
+        let attemptedNewQuantity: Int? = 5
+
+        // Act
+        sut.updateItem(id: itemID, newName: newName, newPrice: attemptedNewPrice, newQuantity: attemptedNewQuantity)
+
+        // Assert
+        let updatedItem = try #require(sut.items.first(where: { $0.id == itemID }))
+        #expect(updatedItem.name == newName, "Name should be updated for task list")
+        // Price and quantity should be reset/defaulted by the updateItem logic for non-supported types
+        #expect(updatedItem.price == nil, "Price should become nil for task list during update, even if attempted. Got \(String(describing: updatedItem.price))")
+        #expect(updatedItem.quantity == 1, "Quantity should become 1 for task list during update, even if attempted. Got \(updatedItem.quantity)")
+    }
+
+    @Test("Update Item - Both Name and Price Change Correctly (Keeps Qty)") // Updated test name
+    func updateItemBothNameAndPriceKeepsQty() throws {
+        // Arrange
+        let sut = createSUT(type: .shopping)
+        let oldName = "Old Name"; let oldPrice: Decimal? = 1.0; let originalQuantity = 2
+        sut.addItem(name: oldName)
+        let itemIndex = try #require(sut.items.firstIndex(where: {$0.name == oldName }))
+        sut.items[itemIndex].price = oldPrice
+        sut.items[itemIndex].quantity = originalQuantity
+        let itemID = sut.items[itemIndex].id
+        let newName = "New Name"; let newPrice: Decimal? = 9.99
+
+        // Act
+        sut.updateItem(id: itemID, newName: newName, newPrice: newPrice, newQuantity: originalQuantity) // Pass original quantity
 
         // Assert
         let updatedItem = try #require(sut.items.first(where: { $0.id == itemID }))
         #expect(updatedItem.name == newName, "Name should be updated")
         #expect(updatedItem.price == newPrice, "Price should be updated")
+        #expect(updatedItem.quantity == originalQuantity, "Quantity should remain unchanged")
     }
 
     @Test("Update Item - No Change If New Name Is Empty")
@@ -292,14 +418,16 @@ struct ListyWistyTests {
         let sut = createSUT()
         let originalName = "Keep This Name"
         let originalPrice = try #require(Decimal(string: "1.0"))
+        let originalQuantity = 1
         sut.addItem(name: originalName)
         #expect(sut.items.count == 1)
         sut.items[0].price = originalPrice // <-- Modify directly
+        sut.items[0].quantity = originalQuantity
         let itemID = sut.items[0].id
         let emptyName = "   "
 
         // Act
-        sut.updateItem(id: itemID, newName: emptyName, newPrice: originalPrice)
+        sut.updateItem(id: itemID, newName: emptyName, newPrice: originalPrice, newQuantity: originalQuantity)
 
         // Assert
         let updatedItem = try #require(sut.items.first(where: { $0.id == itemID }))
@@ -316,7 +444,7 @@ struct ListyWistyTests {
          let initialItems = sut.items // Copy for comparison
 
          // Act
-         sut.updateItem(id: invalidID, newName: "Attempt Update", newPrice: 10.0)
+         sut.updateItem(id: invalidID, newName: "Attempt Update", newPrice: 10.0, newQuantity: 5)
 
          // Assert
          // Check if the items array is identical to the initial one
@@ -400,28 +528,47 @@ struct ListyWistyTests {
      }
 
      // (Optional) Basic Codable Test - requires ShoppingItem to be Equatable
-     @Test("Codable - Encodes and Decodes Correctly")
-      func listCodable() async throws {
-          // Arrange
-          let originalList = createSUT(name: "Codable Test")
-          originalList.addItem(name: "Item 1"); originalList.items[0].price = 1.23
-          originalList.addItem(name: "Item 2"); originalList.items[1].isChecked = true; originalList.items[1].checkedTimestamp = Date()
+    @Test("Codable - Encodes and Decodes Correctly with Type and Quantity")
+    func listCodableWithTypeAndQuantity() throws {
+        // Arrange
+        let originalList = createSUT(name: "Codable Shopping", type: .shopping) // Explicitly shopping
+        originalList.addItem(name: "Item 1"); originalList.items[0].price = 1.23; originalList.items[0].quantity = 3
+        originalList.addItem(name: "Item 2"); originalList.items[1].isChecked = true; originalList.items[1].checkedTimestamp = Date(); originalList.items[1].quantity = 1
 
-          let encoder = JSONEncoder()
-          encoder.outputFormatting = .prettyPrinted // Optional: for debug
-          let decoder = JSONDecoder()
+        let originalTaskList = createSUT(name: "Codable Task", type: .task) // Explicitly task
+        originalTaskList.addItem(name: "Task A"); originalTaskList.items[0].quantity = 5 // Qty should still encode/decode
+        originalTaskList.items[0].price = 99.99 // Price should still encode/decode, even if not used by logic
 
-          // Act
-          let encodedData = try encoder.encode(originalList)
-          // print(String(data: encodedData, encoding: .utf8) ?? "Encode failed") // Debug print
-          let decodedList = try decoder.decode(ShoppingList.self, from: encodedData)
 
-          // Assert
-          #expect(decodedList.id == originalList.id)
-          #expect(decodedList.name == originalList.name)
-          #expect(decodedList.items.count == originalList.items.count)
-          // Direct array comparison works because ShoppingItem is Equatable (via Hashable)
-          #expect(decodedList.items == originalList.items)
-          #expect(decodedList.totalPrice == originalList.totalPrice)
-      }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        let decoder = JSONDecoder()
+
+        // Act: Encode/Decode Shopping List
+        let encodedData = try encoder.encode(originalList)
+        // print("Encoded Shopping:\n\(String(data: encodedData, encoding: .utf8) ?? "Encode failed")") // Debug
+        let decodedList = try decoder.decode(ShoppingList.self, from: encodedData)
+
+        // Act: Encode/Decode Task List
+        let encodedTaskData = try encoder.encode(originalTaskList)
+        // print("Encoded Task:\n\(String(data: encodedTaskData, encoding: .utf8) ?? "Encode failed")") // Debug
+        let decodedTaskList = try decoder.decode(ShoppingList.self, from: encodedTaskData)
+
+
+        // Assert Shopping List
+        #expect(decodedList.id == originalList.id)
+        #expect(decodedList.name == originalList.name)
+        #expect(decodedList.listType == .shopping) // Check type
+        #expect(decodedList.items.count == originalList.items.count)
+        #expect(decodedList.items == originalList.items) // Relies on ShoppingItem Equatable
+        #expect(decodedList.totalPrice == originalList.totalPrice) // Check calculated price
+
+        // Assert Task List
+        #expect(decodedTaskList.id == originalTaskList.id)
+        #expect(decodedTaskList.name == originalTaskList.name)
+        #expect(decodedTaskList.listType == .task) // Check type
+        #expect(decodedTaskList.items.count == originalTaskList.items.count)
+        #expect(decodedTaskList.items == originalTaskList.items)
+        #expect(decodedTaskList.totalPrice == .zero) // Total price should be zero for tasks
+    }
 }

@@ -17,11 +17,16 @@ struct ShoppingListDetailView: View {
     @State private var editingItemID: UUID? = nil
     @State private var itemEditText: String = ""
     @State private var itemEditPrice: String = ""
+    @State private var itemEditQuantity: Int = 1
     
     @State private var showingEditTitleAlert = false
     @State private var editableListName: String = ""
     
     @Environment(\.editMode) var editMode
+    
+    // Helper to check if the current list supports quantity/price
+    private var supportsQuantity: Bool { list.listType.supportsQuantity }
+    private var supportsPrice: Bool { list.listType.supportsPrice }
     
     var body: some View {
         VStack {
@@ -29,21 +34,29 @@ struct ShoppingListDetailView: View {
                 ForEach(list.items) { item in
                     // --- EDITING STATE ---
                     if item.id == editingItemID {
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 8) {
                             
-                            TextField("Item Text", text: $itemEditText)
+                            TextField("Item Name", text: $itemEditText)
                                 .textFieldStyle(.roundedBorder)
                                 .onSubmit(commitItemEdit)
                             
                             HStack {
-                                TextField("Price", text: $itemEditPrice)
-                                    .textFieldStyle(.roundedBorder)
-                                    .keyboardType(.decimalPad)
-                                    .frame(width: 100)
-                                Spacer()
-                                Button("Done", action: commitItemEdit)
-                                    .buttonStyle(.borderedProminent)
+                                if supportsQuantity {
+                                    Stepper("Qty: \(itemEditQuantity)", value: $itemEditQuantity, in: 1...999) // Use Stepper for Quantity
+                                    Spacer() // Push Done button right
+                                }
+                                
+                                if supportsPrice {
+                                    TextField("Price", text: $itemEditPrice)
+                                        .textFieldStyle(.roundedBorder)
+                                        .keyboardType(.decimalPad)
+                                        .frame(minWidth: 80, maxWidth: 100) // Adjusted width
+                                }
                             }
+
+                            Button("Done", action: commitItemEdit)
+                                .buttonStyle(.borderedProminent)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                         }
                         .padding(.vertical, 5)
                     }
@@ -67,11 +80,22 @@ struct ShoppingListDetailView: View {
                                     .strikethrough(item.isChecked, color: .gray) // Strikethrough if checked
                                     .foregroundColor(item.isChecked ? .gray : .primary) // Grey out if checked
                                 
-                                // Display formatted price if available
-                                if let price = item.price {
-                                    Text(Formatters.formatPriceForDisplay(price))
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
+                                // --- Conditional Quantity/Price Display ---
+                                HStack(spacing: 6) { // Group quantity/price display
+                                    if supportsQuantity && item.quantity > 1 { // Only show if > 1
+                                        Text("Qty: \(item.quantity)")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            .padding(.horizontal, 5)
+                                            .background(Color.gray.opacity(0.15))
+                                            .clipShape(Capsule())
+                                    }
+
+                                    if supportsPrice, let price = item.price {
+                                        Text(Formatters.formatPriceForDisplay(price))
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
                                 }
                             }
                             .padding(.vertical, 4)
@@ -132,12 +156,13 @@ struct ShoppingListDetailView: View {
         .navigationTitle(list.name)
         .toolbar{
             
-            // Toolbar for total price
-            ToolbarItem(placement: .navigationBarTrailing) {
-                // Use the currency formatter to display the total
-                Text(Formatters.formatPriceForDisplay(list.totalPrice))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+            // --- Conditional Total Price ---
+            if supportsPrice { // Only show total for shopping lists
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Text("Total: \(Formatters.formatPriceForDisplay(list.totalPrice))") // Added "Total: " prefix
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
             }
             
             ToolbarItem(placement: .navigationBarTrailing) { // Common placement
@@ -190,7 +215,7 @@ struct ShoppingListDetailView: View {
         .id(list.id)
         .onTapGesture { // Dismiss keyboard/editing if tapped outside list
             if editingItemID != nil {
-                commitItemEdit() // maybe dismiss without saving instead of this
+                resetEditingState() // dismiss without saving
             } else {
                 hideKeyboard() // Just hide keyboard if not inline editing
            }
@@ -210,13 +235,17 @@ struct ShoppingListDetailView: View {
         print("--- Attempting to start editing item: \(item.name) (ID: \(item.id)) ---")
         editingItemID = item.id
         itemEditText = item.name
-        // Format the price using the DECIMAL formatter for the text field
-        if let price = item.price {
-            itemEditPrice = Formatters.decimalInputFormatter.string(for: price) ?? ""
-            print("   Populating itemEditPrice with formatted string: '\(itemEditPrice)' using locale \(Formatters.decimalInputFormatter.locale.identifier)")
+        itemEditQuantity = item.quantity
+        
+        // Populate price only if supported and present
+        if supportsPrice {
+            if let price = item.price {
+                itemEditPrice = Formatters.decimalInputFormatter.string(for: price) ?? ""
+            } else {
+                itemEditPrice = ""
+            }
         } else {
-            itemEditPrice = ""
-            print("   Populating itemEditPrice with empty string (no price).")
+            itemEditPrice = "" // Ensure it's empty if not supported
         }
         print("   Set editingItemID to: \(String(describing: editingItemID))")
     }
@@ -225,7 +254,8 @@ struct ShoppingListDetailView: View {
         guard let editingID = editingItemID else { return }
         print("--- Committing Edit for Item ID: \(editingID) ---")
         print("   Name field: '\(itemEditText)'")
-        print("   Price field: '\(itemEditPrice)'")
+        print("   Price field: '\(itemEditPrice)' (Supported: \(supportsPrice))")
+        print("   Quantity field: \(itemEditQuantity) (Supported: \(supportsQuantity))")
 
 
         // Find the *actual* index in the original list.items array
@@ -235,64 +265,103 @@ struct ShoppingListDetailView: View {
              return
         }
 
-        var needsSave = false
-        let originalName = list.items[index].name
-        let originalPrice = list.items[index].price
-
-        // --- Update Name ---
+        // --- Prepare Values ---
+        let originalItem = list.items[index]
         let newName = itemEditText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !newName.isEmpty && newName != originalName {
-            list.items[index].name = newName
-            print("   Updated Name from '\(originalName)' to '\(newName)'")
+        var newPrice: Decimal? = originalItem.price // Start with original
+        var newQuantity: Int? = originalItem.quantity // Start with original
+
+        var needsSave = false
+
+        // --- Check for Name Change ---
+        if !newName.isEmpty && newName != originalItem.name {
+            // newName is already assigned above
+            print("   Updating Name from '\(originalItem.name)' to '\(newName)'")
             needsSave = true
         } else if newName.isEmpty {
-             print("   Name field was empty, not updating name.")
-        } else {
-            print("   Name unchanged ('\(originalName)').")
-        }
-
-        // --- Update Price ---
-        let priceString = itemEditPrice.trimmingCharacters(in: .whitespacesAndNewlines)
-        var parsedDecimal: Decimal? = nil
-
-        if priceString.isEmpty {
-            print("   Price string is empty.")
-            // If the original price was not nil, this is a change (setting to nil)
-            if originalPrice != nil {
-                parsedDecimal = nil
-                print("   Setting price to nil.")
-            } else {
-                // Price was nil and is still nil (empty string) - no change
-                 print("   Price remains nil.")
+            print("   Name field was empty, keeping original '\(originalItem.name)'.")
+            // Keep original name if input was empty
+            // Note: list.updateItem handles the empty check again, but doing it here avoids unnecessary calls/prints
+            // Revert newName to original if it was emptied
+            if originalItem.name != newName {
+                 // This case shouldn't happen due to the guard in list.updateItem,
+                 // but being defensive. Resetting newName prevents accidental update with empty.
+                 // We rely on list.updateItem's logic primarily.
+                 print("   WARNING: Name field was empty; updateItem should prevent this, but resetting.")
             }
         } else {
-            // Attempt to parse using the DECIMAL formatter
-            print("   Attempting to parse price string '\(priceString)' using locale \(Formatters.decimalInputFormatter.locale.identifier)...")
-            if let number = Formatters.decimalInputFormatter.number(from: priceString) {
-                parsedDecimal = number.decimalValue
-                print("   Parse SUCCESS: \(parsedDecimal!)")
+             print("   Name unchanged ('\(originalItem.name)').")
+        }
+        
+        // --- Check for Price Change (Only if supported) ---
+        if supportsPrice {
+            let priceString = itemEditPrice.trimmingCharacters(in: .whitespacesAndNewlines)
+            var parsedDecimal: Decimal? = nil
+
+            if priceString.isEmpty {
+                print("   Price string is empty.")
+                parsedDecimal = nil // Explicitly set to nil if field is empty
             } else {
-                print("   Parse FAILED for string '\(priceString)'. Keeping original price.")
-                // Keep original price if parsing fails - don't set to nil or invalid value
-                parsedDecimal = originalPrice
-                // Optionally, you could show an error to the user here
+                print("   Attempting to parse price string '\(priceString)'...")
+                if let number = Formatters.decimalInputFormatter.number(from: priceString) {
+                    parsedDecimal = number.decimalValue
+                    print("   Parse SUCCESS: \(parsedDecimal!)")
+                } else {
+                    print("   Parse FAILED for string '\(priceString)'. Keeping original price.")
+                    // Keep original price if parsing fails
+                    parsedDecimal = originalItem.price
+                    // Optionally show user error here
+                }
             }
-        }
 
-        // Only update and trigger save if the *parsed* price is different from original
-        if originalPrice != parsedDecimal {
-            list.items[index].price = parsedDecimal
-            print("   Updated Price from '\(String(describing: originalPrice))' to '\(String(describing: parsedDecimal))'")
-            needsSave = true
+            // Check if the parsed price differs from the original
+            if originalItem.price != parsedDecimal {
+                newPrice = parsedDecimal // Assign the parsed value (could be nil)
+                print("   Updating Price from '\(String(describing: originalItem.price))' to '\(String(describing: newPrice))'")
+                needsSave = true
+            } else {
+                 print("   Price unchanged ('\(String(describing: originalItem.price))').")
+            }
         } else {
-             print("   Price unchanged ('\(String(describing: originalPrice))').")
+             print("   Price not supported for this list type.")
+             newPrice = nil // Ensure price is nil if not supported
+             if originalItem.price != nil { // If original had a price, this is a change
+                 needsSave = true
+                 print("   Forcing price to nil as type changed or item moved.")
+             }
+        }
+        
+        // --- Check for Quantity Change (Only if supported) ---
+        if supportsQuantity {
+             // itemEditQuantity is bound to the Stepper, ensure it's at least 1
+             let validQuantity = max(1, itemEditQuantity)
+             if originalItem.quantity != validQuantity {
+                 newQuantity = validQuantity
+                 print("   Updating Quantity from \(originalItem.quantity) to \(newQuantity!)")
+                 needsSave = true
+             } else {
+                 print("   Quantity unchanged (\(originalItem.quantity)).")
+             }
+        } else {
+             print("   Quantity not supported for this list type.")
+             newQuantity = 1 // Reset to default if not supported
+             if originalItem.quantity != 1 { // If original wasn't 1, this is a change
+                 needsSave = true
+                 print("   Forcing quantity to 1 as type changed or item moved.")
+             }
         }
 
 
-        // --- Trigger Save and Reset State ---
+        // --- Perform Update and Trigger Save ---
         if needsSave {
-            print("   Changes detected, triggering save.")
-            viewModel.listDidChange()
+            print("   Changes detected, calling list.updateItem.")
+            // Call the updated method in ShoppingList
+            // Pass the *potentially* modified name, price, and quantity
+            list.updateItem(id: editingID,
+                            newName: newName.isEmpty ? originalItem.name : newName, // Ensure non-empty name passed
+                            newPrice: newPrice,
+                            newQuantity: newQuantity)
+            viewModel.listDidChange() // Trigger save via ViewModel
         } else {
              print("   No changes detected, save not triggered.")
         }
@@ -305,9 +374,11 @@ struct ShoppingListDetailView: View {
         editingItemID = nil
         itemEditText = ""
         itemEditPrice = ""
+        itemEditQuantity = 1 // Reset quantity to default
         hideKeyboard()
          print("--- Editing State Reset ---")
     }
+
     
     // Moving item
     private func moveItem(from source: IndexSet, to destination: Int) {

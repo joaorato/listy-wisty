@@ -70,14 +70,19 @@ class ShoppingListViewModel: ObservableObject {
             print("✅ Lists loaded successfully.")
         } catch {
             print("❌ Error loading lists: \(error.localizedDescription)")
-            // Handle error, maybe delete corrupted file or start fresh
-             lists = [] // Start fresh if decoding fails
+            print("--- Error Details ---")
+            dump(error) // Prints more detailed info about the decoding error
+            print("---------------------")
+            // Consider deleting the corrupt file or informing the user
+            // For now, we still start fresh if loading fails:
+            print("⚠️ Starting with empty list due to load error.")
+            lists = []
         }
     }
     
     @discardableResult
-    func addList(name: String) -> ShoppingList {
-        let newList = ShoppingList(name: name)
+    func addList(name: String, listType: ListType) -> ShoppingList {
+        let newList = ShoppingList(name: name, listType: listType)
         lists.append(newList)
         saveLists() // Save after adding
         return newList

@@ -12,9 +12,10 @@ struct ShoppingListRowView: View {
 
     var body: some View {
         HStack {
-            // Left side: Icon and Name
-            Image(systemName: "cart")
-                .foregroundColor(.blue)
+            // Use list type's icon and color
+            Image(systemName: list.listType.systemImageName)
+                .foregroundColor(list.listType.iconColor) // Use type's color
+            
             Text(list.name)
                 .font(.headline)
                 // Allow name to shrink if needed, but give priority
@@ -22,14 +23,17 @@ struct ShoppingListRowView: View {
                 .lineLimit(1) // Prevent name wrapping interfering too
 
             Spacer() // Pushes the total price to the right
-
-            // Right side: Formatted Total Price
-            // Use the totalPrice computed property - this will now update
-            // when the observed 'list' object changes.
-            Text(Formatters.formatPriceForDisplay(list.totalPrice))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .lineLimit(1) // Ensure total doesn't wrap oddly
+            
+            // Only show total price for shopping lists
+            if list.listType.supportsPrice { // Use the helper property
+                // Right side: Formatted Total Price
+                // Use the totalPrice computed property - this will now update
+                // when the observed 'list' object changes.
+                Text(Formatters.formatPriceForDisplay(list.totalPrice))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1) // Ensure total doesn't wrap oddly
+            }
         }
         .padding(.vertical, 5)
         // The .id is important if you rely on list identity for animations or transitions
