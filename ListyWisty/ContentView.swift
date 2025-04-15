@@ -50,7 +50,7 @@ struct ContentView: View {
                 Button(action: {
                     showingCreateSheet = true // ✅ Show the alert for naming
                 }) {
-                    Label("Create List", systemImage: "plus.circle.fill")
+                    Label("Create", systemImage: "plus.circle.fill")
                         .font(.title2)
                         .foregroundColor(.white)
                         .padding()
@@ -61,7 +61,7 @@ struct ContentView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("Your ListyWisties")
+            .navigationTitle("Your Listies")
 //            .alert("Name your list", isPresented: $showingAlert) {
 //                TextField("Enter list Name", text: $newListName)
 //                Button("Create", action: createList) // ✅ Calls `createList()`
@@ -127,10 +127,10 @@ struct CreateListView: View {
     var body: some View {
         NavigationView { // Embed in NavigationView for title/toolbar
             Form {
-                TextField("List Name", text: $newListName)
+                TextField("Title", text: $newListName)
                     .focused($isNameFieldFocused)
 
-                Picker("List Type", selection: $selectedListType) {
+                Picker("Type", selection: $selectedListType) {
                     ForEach(ListType.allCases) { type in
                         // Display type's name and icon in the picker row
                         HStack {
@@ -143,7 +143,7 @@ struct CreateListView: View {
                 }
                 // Optional: Add more configuration based on type here later
             }
-            .navigationTitle("New List")
+            .navigationTitle("New Listy")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

@@ -22,6 +22,8 @@ struct ShoppingListDetailView: View {
     @State private var showingEditTitleAlert = false
     @State private var editableListName: String = ""
     
+    @State private var shareableItem: ShareableURL? = nil
+    
     @Environment(\.editMode) var editMode
     
     // Helper to check if the current list supports quantity/price
@@ -165,42 +167,66 @@ struct ShoppingListDetailView: View {
             .padding(.bottom)
         }
         .navigationTitle(list.name)
-        .toolbar{
-            
-            // --- Conditional Total Price ---
-            if supportsPrice { // Only show total for shopping lists
-                ToolbarItem(placement: .topBarTrailing) {
-                    Text("Total: \(Formatters.formatPriceForDisplay(list.totalPrice))") // Added "Total: " prefix
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+        .toolbar {
+            // Group all trailing items together
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+
+                // 1. Always Visible: Total Price (Conditional)
+                if list.listType.supportsPrice {
+                    Text(Formatters.formatPriceForDisplay(list.totalPrice))
+                         .font(.subheadline)
+                         .foregroundColor(.secondary)
+                         // Add padding to separate from buttons maybe
+                         // .padding(.trailing, 5)
                 }
-            }
-            
-            ToolbarItem(placement: .topBarTrailing) { // Common placement
-                EditButton() // <<< ADD HERE
-            }
-            
-            // Toolbar for editing list
-            ToolbarItem(placement: .topBarTrailing) {
-                 Button {
-                     editableListName = list.name // Pre-fill state
-                     showingEditTitleAlert = true
-                 } label: {
-                     Image(systemName: "pencil.circle") // Or "info.circle"
+
+                // 2. Always Visible: Share Button
+                Button {
+                    if let url = ShareExportManager.exportListToFile(list) {
+                        self.shareableItem = ShareableURL(url: url)
+                        print("Share button tapped, setting shareableItem to trigger sheet for URL: \(url.path)")
+                    } else {
+                        print("Error: Could not generate file URL for sharing.")
+                        // TODO: Show error alert
+                    }
+                } label: {
+                    Label("Share List", systemImage: "square.and.arrow.up") // Use Label for accessibility
+                }
+                
+                EditButton()
+                
+                // 3. "More" Menu for other actions
+                Menu {
+
+                    // Rename List action
+                    Button {
+                        editableListName = list.name // Pre-fill state
+                        showingEditTitleAlert = true
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+
+                    // Delete List action (Destructive)
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+
+                } label: {
+                    // The label for the menu itself (the button shown in the toolbar)
+                    Label("More Actions", systemImage: "ellipsis.circle")
+                }
+            } // End ToolbarItemGroup
+        } // End toolbar modifier
+        .sheet(item: $shareableItem) { itemWrapper in // Closure receives the ShareableURL instance
+             // Access the actual URL via the wrapper's property
+             ActivityViewRepresentable(activityItems: [itemWrapper.url])
+                 .onDisappear {
+                      // Optional cleanup
+                      // print("Share sheet dismissed. Temp file: \(itemWrapper.url.path)")
+                      // try? FileManager.default.removeItem(at: itemWrapper.url)
                  }
-             }
-            
-            // Toolbar button for deleting list
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(action: {
-                    // Show confirmation alert
-                    showingDeleteConfirmation = true
-                }) {
-                    Image(systemName: "trash")
-                        .foregroundColor(.red)
-                }
-            }
-            
         }
         .alert("Delete List?", isPresented: $showingDeleteConfirmation) {
             Button("Delete", role: .destructive) {
