@@ -108,6 +108,25 @@ class ShoppingListViewModel: ObservableObject {
         saveLists()
     }
     
+    @MainActor // Ensure updates happen on the main thread
+    func addSingleItem(name: String, to list: ShoppingList) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            print("ℹ️ ViewModel: addSingleItem - Name was empty.")
+            return
+        }
+        guard let listIndex = lists.firstIndex(where: { $0.id == list.id }) else {
+            print("❌ ViewModel: List not found for adding single item.")
+            return
+        }
+
+        let newItem = ShoppingItem(name: trimmedName) // Creates with default qty=1, unit=nil
+        lists[listIndex].items.append(newItem)
+        print("✅ ViewModel: Added single item '\(trimmedName)' to list '\(lists[listIndex].name)'")
+
+        listDidChange() // Trigger save
+    }
+    
     @MainActor // Ensure updates to list happen on the main thread
     func parseAndAddItems(text: String, to list: ShoppingList) async throws {
         guard let listIndex = lists.firstIndex(where: { $0.id == list.id }) else {

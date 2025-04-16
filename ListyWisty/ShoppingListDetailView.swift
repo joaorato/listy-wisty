@@ -186,26 +186,38 @@ struct ShoppingListDetailView: View {
             }
             
             HStack {
-                TextField("New item...", text: $newItemName)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding(.leading)
-                    .disabled(isParsingItems)
-                    .onSubmit {
-                        Task { await handleAddItem() }
-                    }
                 
-                Button(action: {
-                    // --- ANIMATION ---
-                    Task { await handleAddItem() }
-                }) {
+                TextField("Add new item...", text: $newItemName)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .onSubmit {
+                        // Default action on Enter: Standard Add
+                        handleStandardAdd()
+                    }
+                    .disabled(isParsingItems)
+                    .padding(.leading)
+                    
+                
+                Button {
+                    handleStandardAdd()
+                } label: {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundColor(isParsingItems ? .gray : .blue)
-                        .font(.title)
+                        .font(.title2)
+                        .foregroundColor(.blue)
                 }
-                .padding(.trailing) // Add padding only on the right
-                .padding(.vertical, 5) // Reduce vertical padding a bit
-                .disabled(isParsingItems || newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(isParsingItems || newItemName.isBlank)
+                
+                // Smart Add Button
+                Button {
+                     Task { await handleSmartAdd() }
+                } label: {
+                     Image(systemName: "brain") // Or "wand.and.stars"
+                         .font(.title2)
+                         .foregroundColor(.purple) // Differentiate color
+                }
+                .padding(.trailing)
+                .disabled(isParsingItems || newItemName.isBlank)
             }
+            .padding(.vertical, 5)
             .background(Color(.systemGray6)) // ✅ Light gray background
             .cornerRadius(10)
             .padding(.horizontal)
@@ -310,7 +322,17 @@ struct ShoppingListDetailView: View {
         newItemName = "" // Clear input
     }
     
-    private func handleAddItem() async {
+    private func handleStandardAdd() {
+        let textToAdd = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !textToAdd.isEmpty else { return }
+
+        viewModel.addSingleItem(name: textToAdd, to: list) // Call new ViewModel method
+
+        newItemName = "" // Clear field
+        hideKeyboard()
+    }
+    
+    private func handleSmartAdd() async {
         let textToAdd = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToAdd.isEmpty else { return }
         
@@ -550,4 +572,11 @@ struct ShoppingListDetailView: View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
     #endif
+}
+
+extension String {
+     var isBlank: Bool {
+         self.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+     }
+     // nilIfEmpty() if you still need it elsewhere
 }
