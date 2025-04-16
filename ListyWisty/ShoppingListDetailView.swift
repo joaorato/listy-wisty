@@ -55,12 +55,26 @@ struct ShoppingListDetailView: View {
                                         .frame(minWidth: 80, maxWidth: 100) // Adjusted width
                                 }
                             }
+                            
+                            HStack {
+                                Spacer() // Push buttons to the right
 
-                            Button("Done", action: commitItemEdit)
-                                .buttonStyle(.borderedProminent)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
+                                Button("Cancel", role: .cancel) { // Explicit Cancel
+                                    resetEditingState()
+                                }
+                                .buttonStyle(.bordered) // Less prominent style
+
+                                Button("Done") { // Explicit Done/Save
+                                    commitItemEdit()
+                                }
+                                .buttonStyle(.borderedProminent) // Primary action style
+                            }
                         }
                         .padding(.vertical, 5)
+                        // Subtle background to differentiate the editing row
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .padding(.horizontal, -10)
                     }
                     // --- DISPLAY STATE ---
                     else {
@@ -250,13 +264,6 @@ struct ShoppingListDetailView: View {
             Text("Enter the new name for this list.")
         }
         .id(list.id)
-        .onTapGesture { // Dismiss keyboard/editing if tapped outside list
-            if editingItemID != nil {
-                resetEditingState() // dismiss without saving
-            } else {
-                hideKeyboard() // Just hide keyboard if not inline editing
-           }
-        }
     }
     
     // --- Helper Functions ---
@@ -413,7 +420,7 @@ struct ShoppingListDetailView: View {
         itemEditPrice = ""
         itemEditQuantity = 1 // Reset quantity to default
         hideKeyboard()
-         print("--- Editing State Reset ---")
+        print("--- Editing State Reset ---")
     }
 
     
