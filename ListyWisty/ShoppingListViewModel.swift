@@ -8,6 +8,7 @@ import SwiftUI
 
 class ShoppingListViewModel: ObservableObject {
     @Published var lists: [ShoppingList] = []
+    private let aiService = AIService()
     
     private var dataFileURL: URL {
         // Use the app's document directory
@@ -105,5 +106,42 @@ class ShoppingListViewModel: ObservableObject {
     func listDidChange() {
         print("ℹ️ List content changed, triggering save.")
         saveLists()
+    }
+    
+    @MainActor // Ensure updates to list happen on the main thread
+    func parseAndAddItems(text: String, to list: ShoppingList) async throws {
+        guard let listIndex = lists.firstIndex(where: { $0.id == list.id }) else {
+            print("❌ ViewModel: List not found for adding items.")
+            return
+        }
+        
+        do {
+            let parsedItems = try await aiService.parseItems(from: text, listType: list.listType)
+
+            guard !parsedItems.isEmpty else {
+                 print("ℹ️ ViewModel: AI Service returned no items to add.")
+                 return // Nothing to add
+             }
+
+            // Add the parsed items to the specific list's items array
+            var updatedItems = lists[listIndex].items
+            for parsedItem in parsedItems {
+                // Default quantity to 1 if LLM returns nil (shouldn't happen with good prompt but defensive)
+                let quantity = parsedItem.quantity ?? 1
+                let newItem = ShoppingItem(name: parsedItem.name, quantity: quantity, unit: parsedItem.unit)
+                updatedItems.append(newItem)
+                print("   ViewModel: Preparing to add item - \(newItem.name), Qty: \(newItem.quantity), Unit: \(newItem.unit ?? "nil")")
+            }
+
+            // Update the list's items - this triggers @Published update for ShoppingListDetailView
+            lists[listIndex].items = updatedItems
+            print("✅ ViewModel: Added \(parsedItems.count) items to list '\(lists[listIndex].name)'")
+
+            // Trigger save
+            listDidChange()
+        } catch {
+            print("❌ ViewModel: Error parsing or adding items: \(error)")
+            throw error
+        }
     }
 }

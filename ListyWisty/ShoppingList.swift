@@ -93,7 +93,7 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         // viewModel.listDidChange() will handle saving.
     }
     
-    func updateItem(id: UUID, newName: String, newPrice: Decimal?, newQuantity: Int?) {
+    func updateItem(id: UUID, newName: String, newPrice: Decimal?, newQuantity: Int?, newUnit: String?) {
         // 1. Find the item index
         guard let index = items.firstIndex(where: { $0.id == id }) else {
             print("⚠️ updateItem failed: Could not find item with ID \(id)")
@@ -141,11 +141,25 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
                 print("   Item \(id): Updated Quantity to \(validatedQuantity)")
                 didUpdate = true
             }
+            
+            // --- Update Unit ---
+            // Treat empty string as nil for consistency
+            let validatedUnit: String? = newUnit?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty() // Use helper extension below
+            if items[index].unit != validatedUnit {
+                 items[index].unit = validatedUnit
+                 print("   Item \(id): Updated Unit to '\(validatedUnit ?? "nil")'")
+                 didUpdate = true
+            }
         } else {
             // Type does NOT support quantity. Ensure item's quantity is 1.
             if items[index].quantity != 1 { // If it's currently not 1...
                 items[index].quantity = 1 // ...reset it to 1.
                 print("   Item \(id): Reset Quantity to 1 (type '\(listType.rawValue)' doesn't support quantity)")
+                didUpdate = true
+            }
+            if items[index].unit != nil { // Also reset unit if type doesn't support quantity
+                items[index].unit = nil
+                print("   Item \(id): Reset Unit to nil (type '\(listType.displayName)' doesn't support quantity/unit)")
                 didUpdate = true
             }
         }
@@ -212,5 +226,13 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         try container.encode(name, forKey: .name)
         try container.encode(items, forKey: .items)
         try container.encode(listType, forKey: .listType)
+    }
+}
+
+extension String {
+    /// Returns nil if the string is empty after trimming whitespace, otherwise returns the trimmed string.
+    func nilIfEmpty() -> String? {
+        let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

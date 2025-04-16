@@ -13,9 +13,10 @@ struct ShoppingItem: Identifiable, Hashable, Codable {
     var checkedTimestamp: Date? // Track when item was checked for sorting
     var price: Decimal?
     var quantity: Int
+    var unit: String?
     
     // Initialiser remais simple
-    init(id: UUID = UUID(), name: String, isChecked: Bool = false, checkedTimestamp: Date? = nil, price: Decimal? = nil, quantity: Int = 1) {
+    init(id: UUID = UUID(), name: String, isChecked: Bool = false, checkedTimestamp: Date? = nil, price: Decimal? = nil, quantity: Int = 1, unit: String? = nil) {
         self.id = id
         self.name = name
         self.isChecked = isChecked
@@ -23,13 +24,14 @@ struct ShoppingItem: Identifiable, Hashable, Codable {
         self.price = price
         // Ensure quantity is never less than 1 on init
         self.quantity = max(1, quantity) // Added assignment and validation
+        self.unit = unit
     }
     
     // --- Codable Conformance ---
 
     // 1. Define Coding Keys
     enum CodingKeys: String, CodingKey {
-        case id, name, isChecked, checkedTimestamp, price, quantity
+        case id, name, isChecked, checkedTimestamp, price, quantity, unit
     }
 
     // 2. Implement Decoder Initializer
@@ -52,6 +54,8 @@ struct ShoppingItem: Identifiable, Hashable, Codable {
         // Also ensure the decoded value is at least 1.
         let decodedQuantity = try container.decodeIfPresent(Int.self, forKey: .quantity) ?? 1
         quantity = max(1, decodedQuantity) // Use default 1 AND validate >= 1
+        
+        unit = try container.decodeIfPresent(String.self, forKey: .unit)
     }
 
     // 3. Implement Encoder (Good practice)
@@ -64,5 +68,6 @@ struct ShoppingItem: Identifiable, Hashable, Codable {
         try container.encodeIfPresent(checkedTimestamp, forKey: .checkedTimestamp)
         try container.encodeIfPresent(price, forKey: .price)
         try container.encode(quantity, forKey: .quantity)
+        try container.encodeIfPresent(unit, forKey: .unit)
     }
 }
