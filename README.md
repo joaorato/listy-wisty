@@ -1,5 +1,7 @@
 # ListyWisty - A MinimaList App
 
+!(ListyWisty/Assets.xcassets/AppIcon.appiconset/listywisty-logo.png)
+
 ListyWisty is a basic iOS application built with SwiftUI and powered by AI to help users create and manage shopping lists or checklists.
 
 ## Features
