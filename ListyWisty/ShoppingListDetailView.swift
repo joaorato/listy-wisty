@@ -116,6 +116,7 @@ struct ShoppingListDetailView: View {
                                     }
                                 }
                             }
+                            .padding(.leading, 8)
                             .padding(.vertical, 4)
                             .contentShape(Rectangle())
                             // Text are tappable to START editing
