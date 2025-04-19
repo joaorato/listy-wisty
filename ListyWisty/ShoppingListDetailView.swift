@@ -28,6 +28,8 @@ struct ShoppingListDetailView: View {
     @State private var isParsingItems: Bool = false
     @State private var parseError: String? = nil
     
+    @State private var showingAddItemSheet = false
+    
     @Environment(\.editMode) var editMode
     
     // Helper to check if the current list supports quantity/price
@@ -185,43 +187,21 @@ struct ShoppingListDetailView: View {
                 }
             }
             
-            HStack {
-                
-                TextField("Add new item...", text: $newItemName)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onSubmit {
-                        // Default action on Enter: Standard Add
-                        handleStandardAdd()
-                    }
-                    .disabled(isParsingItems)
-                    .padding(.leading)
-                    
-                
-                Button {
-                    handleStandardAdd()
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                }
-                .disabled(isParsingItems || newItemName.isBlank)
-                
-                // Smart Add Button
-                Button {
-                     Task { await handleSmartAdd() }
-                } label: {
-                     Image(systemName: "brain") // Or "wand.and.stars"
-                         .font(.title2)
-                         .foregroundColor(.purple) // Differentiate color
-                }
-                .padding(.trailing)
-                .disabled(isParsingItems || newItemName.isBlank)
+            Spacer()
+            
+            Button {
+                showingAddItemSheet = true
+            } label: {
+                Label("Add Item", systemImage: "plus.circle.fill")
+                    .font(.title2) // Make it prominent
+                    // Optional: Style like a FAB
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.blue)
+                    .clipShape(Capsule())
+                    .shadow(radius: 5)
+                    .padding(.bottom) // Add padding from bottom edge
             }
-            .padding(.vertical, 5)
-            .background(Color(.systemGray6)) // ✅ Light gray background
-            .cornerRadius(10)
-            .padding(.horizontal)
-            .padding(.bottom)
         }
         .navigationTitle(list.name)
         .toolbar {
@@ -311,6 +291,10 @@ struct ShoppingListDetailView: View {
         }, message: {
             Text(parseError ?? "An unknown error occurred.")
         })
+        .sheet(isPresented: $showingAddItemSheet) {
+             // Present the new AddItemView
+             AddItemView(viewModel: viewModel, list: list)
+        }
         .id(list.id)
     }
     
@@ -322,11 +306,11 @@ struct ShoppingListDetailView: View {
         newItemName = "" // Clear input
     }
     
-    private func handleStandardAdd() {
+    private func handleStandardAdd() async {
         let textToAdd = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToAdd.isEmpty else { return }
 
-        viewModel.addSingleItem(name: textToAdd, to: list) // Call new ViewModel method
+        await viewModel.addItem(name: textToAdd, toList: list) // Call new ViewModel method
 
         newItemName = "" // Clear field
         hideKeyboard()

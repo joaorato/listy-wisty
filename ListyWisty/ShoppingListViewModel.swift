@@ -108,21 +108,39 @@ class ShoppingListViewModel: ObservableObject {
         saveLists()
     }
     
-    @MainActor // Ensure updates happen on the main thread
-    func addSingleItem(name: String, to list: ShoppingList) {
+    @MainActor
+    func addItem(
+        name: String,
+        quantity: Int = 1, // Default quantity
+        unit: String? = nil, // Default unit
+        price: Decimal? = nil, // Default price
+        toList list: ShoppingList // Keep list parameter non-optional
+    ) async { // Keep async if potential future versions need it, otherwise make sync
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
-            print("ℹ️ ViewModel: addSingleItem - Name was empty.")
+            print("ℹ️ ViewModel: addItem - Name was empty.")
             return
         }
         guard let listIndex = lists.firstIndex(where: { $0.id == list.id }) else {
-            print("❌ ViewModel: List not found for adding single item.")
+            print("❌ ViewModel: List not found for adding item.")
             return
         }
 
-        let newItem = ShoppingItem(name: trimmedName) // Creates with default qty=1, unit=nil
+        // Validate quantity is at least 1
+        let finalQuantity = max(1, quantity)
+        // Ensure unit is nil if empty/whitespace
+        let finalUnit = unit?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty()
+
+        let newItem = ShoppingItem(
+            name: trimmedName,
+            price: price, // Use provided price or default nil
+            quantity: finalQuantity, // Use provided quantity or default 1 (validated)
+            unit: finalUnit // Use provided unit or default nil (cleaned)
+        )
+
+        // Append and Save
         lists[listIndex].items.append(newItem)
-        print("✅ ViewModel: Added single item '\(trimmedName)' to list '\(lists[listIndex].name)'")
+        print("✅ ViewModel: Added item '\(newItem.name)' (Qty: \(newItem.quantity), Unit: \(newItem.unit ?? "nil"), Price: \(String(describing: newItem.price))) to list '\(lists[listIndex].name)'")
 
         listDidChange() // Trigger save
     }
