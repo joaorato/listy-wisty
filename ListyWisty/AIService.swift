@@ -181,8 +181,8 @@ class AIService {
          Instructions:
          1. Separate items based on commas, the word "and", or newlines.
          2. Identify the item name. Clean it up slightly (e.g., first letter uppercase, trim whitespace).
-         3. Identify the quantity. Convert common words like 'dozen' to 12, 'pair' to 2. If no quantity is mentioned, default to 1. Ensure quantity is an integer.
-         4. Identify common units associated with the quantity (e.g., kg, g, lbs, oz, liters, mL, gallon, pack, box, bottle, can, bag, loaf, bunch). If no unit is specified or applicable, the unit should be null.
+         3. Identify the quantity. If no quantity is mentioned, default to 1. Ensure quantity is an integer. If the item is something that usually is sold by the dozen or a specific quantity then prefer to set the unit to that word (e.g. dozen) and keep the quantity as the amount of dozens (instead of 12).
+         4. Identify common units associated with the quantity (e.g., kg, g, lbs, oz, liters, mL, gallon, pack, dozen, half-dozen, box, bottle, can, bag, loaf, bunch). If no unit is specified or applicable, the unit should be null.
          5. Structure the output ONLY as a valid JSON array of objects. Each object MUST have the keys "name" (string), "quantity" (integer, default 1), and "unit" (string or null).
          6. IMPORTANT: Do not include any introductory text, explanations, markdown formatting (like ```json ... ```), or anything else before or after the JSON array. Only the raw JSON array is allowed. Failure to comply will result in an error.
          """

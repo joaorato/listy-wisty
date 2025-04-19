@@ -73,7 +73,7 @@ struct ContentView: View {
                 CreateListView(viewModel: viewModel) { newList in
                     // Optional: Navigate immediately after creation from sheet
                     // This logic might need refinement depending on sheet dismissal timing
-                    // selectedList = newList
+                    selectedList = newList
                 }
             }
             .navigationDestination(item: $selectedList) { list in
