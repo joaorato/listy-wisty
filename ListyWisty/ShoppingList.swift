@@ -57,8 +57,11 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
     
     // MARK: - Item Management Methods
     func addItem(name: String) {
-        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let newItem = ShoppingItem(name: name)
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            return
+        }
+        let newItem = ShoppingItem(name: trimmedName)
         // Append ensures new unchecked items appear at the end of the unchecked section
         items.append(newItem)
     }

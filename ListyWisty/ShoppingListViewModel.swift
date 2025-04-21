@@ -10,18 +10,41 @@ class ShoppingListViewModel: ObservableObject {
     @Published var lists: [ShoppingList] = []
     private let aiService = AIService()
     
+    // Keep track if we loaded data or used injected data
+    private var didLoadFromFile = false
+    
     private var dataFileURL: URL {
         // Use the app's document directory
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("ShoppingLists.json")
     }
     
-    init() {
-        loadLists() // Load lists when the ViewModel is created
+    // Existing initializer becomes a convenience initializer
+    convenience init() {
+        // Pass nil to the designated initializer to trigger loading
+        self.init(initialLists: nil)
+    }
+    
+    init(initialLists: [ShoppingList]?) {
+        if let listsToUse = initialLists {
+            print("🔄 ViewModel Initialized with injected data (\(listsToUse.count) lists). Skipping file load.")
+            self.lists = listsToUse
+            self.didLoadFromFile = false // Mark that we didn't load
+        } else {
+            print("🔄 ViewModel Initializing, will attempt to load from file.")
+            loadLists() // Call loadLists only if no initial data provided
+            self.didLoadFromFile = true // Mark that we attempted load
+        }
     }
     
     // --- SAVE Function ---
     func saveLists() {
+        // Optionally, only save if data was originally loaded from file or modified since injection
+        // This prevents tests that inject data from overwriting the user's real data file accidentally.
+        guard didLoadFromFile || !lists.isEmpty else { // Basic check: Save if loaded or if injected data exists
+            print("💾 Skipping save: Data was injected and is now empty, or initial load failed/was empty.")
+            return
+        }
         print("💾 Attempting to save lists...")
         // --- Debug Print Start ---
         if let listToDebug = lists.first, let itemToDebug = listToDebug.items.first {
