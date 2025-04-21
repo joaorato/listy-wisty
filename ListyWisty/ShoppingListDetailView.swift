@@ -10,7 +10,6 @@ import SwiftUI
 struct ShoppingListDetailView: View {
     @ObservedObject var viewModel: ShoppingListViewModel
     @ObservedObject var list: ShoppingList
-    @State private var newItemName = ""
     @Environment(\.dismiss) var dismiss
     @State private var showingDeleteConfirmation = false
     
@@ -24,10 +23,7 @@ struct ShoppingListDetailView: View {
     @State private var editableListName: String = ""
     
     @State private var shareableItem: ShareableURL? = nil
-    
-    @State private var isParsingItems: Bool = false
-    @State private var parseError: String? = nil
-    
+        
     @State private var showingAddItemSheet = false
     
     @Environment(\.editMode) var editMode
@@ -176,16 +172,6 @@ struct ShoppingListDetailView: View {
             }
             .listStyle(.plain) // ✅ Minimalist list style
             .environment(\.editMode, editMode)
-            // Optional overlay ProgressView on List during parse
-            .overlay {
-                if isParsingItems {
-                    ProgressView("Parsing...")
-                        .padding()
-                        .background(.ultraThickMaterial)
-                        .cornerRadius(10)
-                        .shadow(radius: 5)
-                }
-            }
             
             Spacer()
             
@@ -286,11 +272,6 @@ struct ShoppingListDetailView: View {
         } message: {
             Text("Enter the new name for this list.")
         }
-        .alert("Error Parsing Items", isPresented: .constant(parseError != nil), actions: {
-            Button("OK") { parseError = nil }
-        }, message: {
-            Text(parseError ?? "An unknown error occurred.")
-        })
         .sheet(isPresented: $showingAddItemSheet) {
              // Present the new AddItemView
              AddItemView(viewModel: viewModel, list: list)
@@ -299,72 +280,6 @@ struct ShoppingListDetailView: View {
     }
     
     // --- Helper Functions ---
-    
-    private func addItemAction() {
-        list.addItem(name: newItemName)
-        viewModel.listDidChange() // Trigger save
-        newItemName = "" // Clear input
-    }
-    
-    private func handleStandardAdd() async {
-        let textToAdd = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !textToAdd.isEmpty else { return }
-
-        await viewModel.addItem(name: textToAdd, toList: list) // Call new ViewModel method
-
-        newItemName = "" // Clear field
-        hideKeyboard()
-    }
-    
-    private func handleSmartAdd() async {
-        let textToAdd = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !textToAdd.isEmpty else { return }
-        
-        // Clear field immediately for responsiveness\
-        newItemName = ""
-        // Hide keyboard
-        hideKeyboard()
-        
-        isParsingItems = true
-        parseError = nil
-        
-        do {
-            try await viewModel.parseAndAddItems(text: textToAdd, to: list)
-            // Success! Items were added by the ViewModel, UI should update via @Published
-            print("✅ View: handleAddItem completed successfully.")
-        } catch let error as AIServiceError {
-            // Handle specific AI errors
-            print("❌ View: AIServiceError - \(error)")
-            parseError = "Failed to parse items. \(errorMessage(for: error))" // Set error message for alert
-       } catch {
-            // Handle other errors
-            print("❌ View: Unknown error - \(error)")
-            parseError = "An unexpected error occurred while adding items."
-       }
-        
-        isParsingItems = false
-    }
-    
-    // Helper to create user-friendly error messages
-    private func errorMessage(for error: AIServiceError) -> String {
-        switch error {
-        case .networkError:
-            return "Please check your internet connection."
-        case .decodingError:
-            return "Received an unexpected response from the server."
-        case .serverError(_, let message):
-            return message ?? "The AI server returned an error. Please try again later."
-        case .invalidResponseFormat:
-            return "Received an invalid response format."
-        case .apiKeyMissing:
-             return "AI service configuration error." // Generic message for user
-        case .backendProxyError(let message):
-             return "AI service failed: \(message)" // Show proxy message if available
-        case .llmError(let details):
-            print("LLM Error Details: \(details)")
-            return "The AI failed to understand the items. Try phrasing differently or adding items manually."
-        }
-    }
     
     private func startEditingItem(_ item: ShoppingItem) {
         guard editingItemID == nil && !(editMode?.wrappedValue.isEditing ?? false) else { return }

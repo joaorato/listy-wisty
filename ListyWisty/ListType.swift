@@ -6,7 +6,6 @@
 //
 
 
-// ListType.swift (New File)
 import Foundation
 import SwiftUI // For Color, Image names
 
