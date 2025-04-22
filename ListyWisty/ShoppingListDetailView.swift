@@ -36,256 +36,152 @@ struct ShoppingListDetailView: View {
     
     var body: some View {
         ScrollViewReader { proxy in
-            VStack {
-                List {
-                    ForEach(list.items) { item in
-                        // --- EDITING STATE ---
-                        if item.id == editingItemID {
-                            VStack(alignment: .leading, spacing: 8) {
-                                
-                                TextField("Item Name", text: $itemEditText, axis: .vertical)
-                                    .textFieldStyle(.roundedBorder)
-                                    .onSubmit(commitItemEdit)
-                                    .focused($focusedFieldId, equals: item.id) // Bind focus
-                                
-                                HStack {
-                                    if supportsQuantity {
-                                        Stepper("Qty: \(itemEditQuantity)", value: $itemEditQuantity, in: 1...999) // Use Stepper for Quantity
-                                            .fixedSize()
-                                        
-                                        TextField("Unit", text: $itemEditUnit)
-                                            .textFieldStyle(.roundedBorder)
-                                            .autocapitalization(.none)
-                                            .frame(maxWidth: 80)
-                                            .focused($focusedFieldId, equals: item.id)
-                                    }
+            List {
+                ForEach(list.items) { item in
+                    // --- EDITING STATE ---
+                    if item.id == editingItemID {
+                        VStack(alignment: .leading, spacing: 8) {
+                            
+                            TextField("Item Name", text: $itemEditText, axis: .vertical)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit(commitItemEdit)
+                                .focused($focusedFieldId, equals: item.id) // Bind focus
+                            
+                            HStack {
+                                if supportsQuantity {
+                                    Stepper("Qty: \(itemEditQuantity)", value: $itemEditQuantity, in: 1...999) // Use Stepper for Quantity
+                                        .fixedSize()
                                     
-                                    Spacer() // Push price field right
-                                    
-                                    if supportsPrice {
-                                        TextField("Price", text: $itemEditPrice)
-                                            .textFieldStyle(.roundedBorder)
-                                            .keyboardType(.decimalPad)
-                                            .frame(minWidth: 80, maxWidth: 100) // Adjusted width
-                                            .focused($focusedFieldId, equals: item.id)
-                                    }
+                                    TextField("Unit", text: $itemEditUnit)
+                                        .textFieldStyle(.roundedBorder)
+                                        .autocapitalization(.none)
+                                        .frame(maxWidth: 80)
+                                        .focused($focusedFieldId, equals: item.id)
                                 }
                                 
-                                HStack {
-                                    Spacer() // Push buttons to the right
-
-                                    Button("Cancel", role: .cancel) { // Explicit Cancel
-                                        resetEditingState()
-                                    }
-                                    .buttonStyle(.bordered) // Less prominent style
-
-                                    Button("Done") { // Explicit Done/Save
-                                        commitItemEdit()
-                                    }
-                                    .buttonStyle(.borderedProminent) // Primary action style
+                                Spacer() // Push price field right
+                                
+                                if supportsPrice {
+                                    TextField("Price", text: $itemEditPrice)
+                                        .textFieldStyle(.roundedBorder)
+                                        .keyboardType(.decimalPad)
+                                        .frame(minWidth: 80, maxWidth: 100) // Adjusted width
+                                        .focused($focusedFieldId, equals: item.id)
                                 }
                             }
-                            .padding(.vertical, 5)
-                            // Subtle background to differentiate the editing row
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                            .padding(.horizontal, -10)
-                            .id(item.id)
-                        }
-                        // --- DISPLAY STATE ---
-                        else {
+                            
                             HStack {
-                                Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(item.isChecked ? .green : .blue)
-                                    .font(.title2)
-                                    .highPriorityGesture(
-                                        TapGesture()
-                                            .onEnded { _ in
-                                                print("High priority TOGGLE gesture hit")
-                                                withAnimation {
-                                                    list.toggleItem(id: item.id)
-                                                    viewModel.listDidChange()
-                                                }
+                                Spacer() // Push buttons to the right
+
+                                Button("Cancel", role: .cancel) { // Explicit Cancel
+                                    resetEditingState()
+                                }
+                                .buttonStyle(.bordered) // Less prominent style
+
+                                Button("Done") { // Explicit Done/Save
+                                    commitItemEdit()
+                                }
+                                .buttonStyle(.borderedProminent) // Primary action style
+                            }
+                        }
+                        .padding(.vertical, 5)
+                        // Subtle background to differentiate the editing row
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .padding(.horizontal, -10)
+                        .id(item.id)
+                    }
+                    // --- DISPLAY STATE ---
+                    else {
+                        HStack {
+                            Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(item.isChecked ? .green : .blue)
+                                .font(.title2)
+                                .highPriorityGesture(
+                                    TapGesture()
+                                        .onEnded { _ in
+                                            print("High priority TOGGLE gesture hit")
+                                            withAnimation {
+                                                list.toggleItem(id: item.id)
+                                                viewModel.listDidChange()
                                             }
-                                    )
+                                        }
+                                )
+                            
+                            VStack(alignment: .leading) {
+                                Text(item.name)
+                                    .strikethrough(item.isChecked, color: .gray) // Strikethrough if checked
+                                    .foregroundColor(item.isChecked ? .gray : .primary) // Grey out if checked
                                 
-                                VStack(alignment: .leading) {
-                                    Text(item.name)
-                                        .strikethrough(item.isChecked, color: .gray) // Strikethrough if checked
-                                        .foregroundColor(item.isChecked ? .gray : .primary) // Grey out if checked
-                                    
-                                    // --- Conditional Quantity/Price Display ---
-                                    HStack(spacing: 6) { // Group quantity/price display
-                                        if let unit = item.unit, !unit.isEmpty {
-                                            // Display with unit
-                                            Text("Qty: \(item.quantity) \(unit)")
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                                .padding(.horizontal, 5)
-                                                .background(Color.gray.opacity(0.15))
-                                                .clipShape(Capsule())
-                                        } else if item.quantity > 1 && list.listType.supportsQuantity { // Only show Qty if > 1 AND no unit
-                                            // Display only quantity (if > 1 and type supports it)
-                                            Text("Qty: \(item.quantity)")
+                                // --- Conditional Quantity/Price Display ---
+                                HStack(spacing: 6) { // Group quantity/price display
+                                    if let unit = item.unit, !unit.isEmpty {
+                                        // Display with unit
+                                        Text("Qty: \(item.quantity) \(unit)")
                                             .font(.caption)
                                             .foregroundColor(.gray)
                                             .padding(.horizontal, 5)
                                             .background(Color.gray.opacity(0.15))
                                             .clipShape(Capsule())
-                                        } // Else: If quantity is 1 and no unit, show nothing extra
+                                    } else if item.quantity > 1 && list.listType.supportsQuantity { // Only show Qty if > 1 AND no unit
+                                        // Display only quantity (if > 1 and type supports it)
+                                        Text("Qty: \(item.quantity)")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .padding(.horizontal, 5)
+                                        .background(Color.gray.opacity(0.15))
+                                        .clipShape(Capsule())
+                                    } // Else: If quantity is 1 and no unit, show nothing extra
 
-                                        if supportsPrice, let price = item.price {
-                                            Text(Formatters.formatPriceForDisplay(price))
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                                // Add spacing if both quantity/unit AND price are shown
-                                                .padding(.leading, (item.unit != nil || item.quantity > 1) ? 4 : 0)
-                                        }
+                                    if supportsPrice, let price = item.price {
+                                        Text(Formatters.formatPriceForDisplay(price))
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            // Add spacing if both quantity/unit AND price are shown
+                                            .padding(.leading, (item.unit != nil || item.quantity > 1) ? 4 : 0)
                                     }
                                 }
-                                .padding(.leading, 8)
-                                .padding(.vertical, 4)
-                                .contentShape(Rectangle())
-                                // Text are tappable to START editing
-                                .highPriorityGesture(
-                                    TapGesture()
-                                        .onEnded { _ in // Use .onEnded for TapGesture within highPriority
-                                            print("High priority edit gesture hit") // Log for this gesture
-                                            // Only start editing if not already editing this specific item
-                                            if !(editMode?.wrappedValue.isEditing ?? false) && editingItemID != item.id {
-                                                startEditingItem(item)
-                                            }
+                            }
+                            .padding(.leading, 8)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                            // Text are tappable to START editing
+                            .highPriorityGesture(
+                                TapGesture()
+                                    .onEnded { _ in // Use .onEnded for TapGesture within highPriority
+                                        print("High priority edit gesture hit") // Log for this gesture
+                                        // Only start editing if not already editing this specific item
+                                        if !(editMode?.wrappedValue.isEditing ?? false) && editingItemID != item.id {
+                                            startEditingItem(item)
                                         }
-                                )
-                                
-                                Spacer() // Push text and image to the left
-                            }
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) { // Swipe from left-to-right
-                                Button {
-                                    print("Swipe TOGGLE action triggered (full or tap)")
-                                    withAnimation {
-                                        list.toggleItem(id: item.id)
-                                        viewModel.listDidChange()
                                     }
-                                } label: {
-                                    Label("Toggle", systemImage: item.isChecked ? "arrow.uturn.backward.circle" : "checkmark.circle.fill")
+                            )
+                            
+                            Spacer() // Push text and image to the left
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) { // Swipe from left-to-right
+                            Button {
+                                print("Swipe TOGGLE action triggered (full or tap)")
+                                withAnimation {
+                                    list.toggleItem(id: item.id)
+                                    viewModel.listDidChange()
                                 }
-                                .tint(item.isChecked ? .orange : .green) // Use colors to indicate action
+                            } label: {
+                                Label("Toggle", systemImage: item.isChecked ? "arrow.uturn.backward.circle" : "checkmark.circle.fill")
                             }
+                            .tint(item.isChecked ? .orange : .green) // Use colors to indicate action
                         }
                     }
-                    .onMove(perform: moveItem) // Enable moving of items
-                    .onDelete(perform: deleteItem) // Enable swipe-to-delete
                 }
-                .listStyle(.plain) // ✅ Minimalist list style
-                .environment(\.editMode, editMode)
-                
-                Spacer()
-                
-                Button {
-                    showingAddItemSheet = true
-                } label: {
-                    Label("Add Item", systemImage: "plus.circle.fill")
-                        .font(.title2) // Make it prominent
-                        // Optional: Style like a FAB
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.blue)
-                        .clipShape(Capsule())
-                        .shadow(radius: 5)
-                        .padding(.bottom) // Add padding from bottom edge
-                }
+                .onMove(perform: moveItem) // Enable moving of items
+                .onDelete(perform: deleteItem) // Enable swipe-to-delete
             }
+            .listStyle(.plain) // ✅ Minimalist list style
+            .environment(\.editMode, editMode)
             .navigationTitle(list.name)
-            .toolbar {
-                // Group all trailing items together
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-
-                    // 1. Always Visible: Total Price (Conditional)
-                    if list.listType.supportsPrice {
-                        Text(Formatters.formatPriceForDisplay(list.totalPrice))
-                             .font(.subheadline)
-                             .foregroundColor(.secondary)
-                             // Add padding to separate from buttons maybe
-                             // .padding(.trailing, 5)
-                    }
-
-                    // 2. Always Visible: Share Button
-                    Button {
-                        if let url = ShareExportManager.exportListToFile(list) {
-                            self.shareableItem = ShareableURL(url: url)
-                            print("Share button tapped, setting shareableItem to trigger sheet for URL: \(url.path)")
-                        } else {
-                            print("Error: Could not generate file URL for sharing.")
-                            // TODO: Show error alert
-                        }
-                    } label: {
-                        Label("Share List", systemImage: "square.and.arrow.up") // Use Label for accessibility
-                    }
-                    
-                    EditButton()
-                    
-                    // 3. "More" Menu for other actions
-                    Menu {
-
-                        // Rename List action
-                        Button {
-                            editableListName = list.name // Pre-fill state
-                            showingEditTitleAlert = true
-                        } label: {
-                            Label("Rename", systemImage: "pencil")
-                        }
-
-                        // Delete List action (Destructive)
-                        Button(role: .destructive) {
-                            showingDeleteConfirmation = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-
-                    } label: {
-                        // The label for the menu itself (the button shown in the toolbar)
-                        Label("More Actions", systemImage: "ellipsis.circle")
-                    }
-                } // End ToolbarItemGroup
-            } // End toolbar modifier
-            .sheet(item: $shareableItem) { itemWrapper in // Closure receives the ShareableURL instance
-                 // Access the actual URL via the wrapper's property
-                 ActivityViewRepresentable(activityItems: [itemWrapper.url])
-                     .onDisappear {
-                          // Optional cleanup
-                          // print("Share sheet dismissed. Temp file: \(itemWrapper.url.path)")
-                          // try? FileManager.default.removeItem(at: itemWrapper.url)
-                     }
-            }
-            .alert("Delete List?", isPresented: $showingDeleteConfirmation) {
-                Button("Delete", role: .destructive) {
-                    viewModel.deleteList(id: list.id)
-                    dismiss()
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: { Text("Are you sure you want to delete the list \"\(list.name)\"? This action cannot be undone.") }
-            .alert("Edit List Name", isPresented: $showingEditTitleAlert) {
-                TextField("List Name", text: $editableListName)
-                Button("Save") {
-                    let trimmedName = editableListName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmedName.isEmpty && trimmedName != list.name {
-                        viewModel.objectWillChange.send() // This tells ContentView (observing viewModel) to prepare for an update
-                        list.name = trimmedName // Update the list directly
-                        viewModel.listDidChange() // Trigger save
-                    }
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("Enter the new name for this list.")
-            }
-            .sheet(isPresented: $showingAddItemSheet) {
-                 // Present the new AddItemView
-                 AddItemView(viewModel: viewModel, list: list)
-            }
-            .onChange(of: focusedFieldId) { newFocusId in // <--- Monitor focus changes
+            .onChange(of: focusedFieldId) { oldValue, newValue in // <-- Monitor focus changes
                 // Check if focus moved TO a field WITHIN the currently edited item
-                if let currentFocusId = newFocusId, currentFocusId == editingItemID {
+                if let currentFocusId = newValue, currentFocusId == editingItemID {
                     print("Focus changed to field in editing item \(currentFocusId), scrolling...")
                     // Use a slight delay to ensure layout calculations are done after keyboard appears
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { // Adjust delay if needed
@@ -294,11 +190,117 @@ struct ShoppingListDetailView: View {
                         }
                     }
                 } else {
-                     print("Focus changed, but not to the currently editing item or focus lost.")
+                    print("Focus changed (old: \(String(describing: oldValue)), new: \(String(describing: newValue))), but not to the currently editing item or focus lost.")
                 }
             } // End onChange
         }
+        .overlay(alignment: .bottom) { // <--- Use overlay
+            // --- Add Item Button (Conditional Visibility) ---
+             if focusedFieldId == nil { // <--- Check if focus is NOT active
+                 Button {
+                     showingAddItemSheet = true
+                 } label: {
+                     Label("Add Item", systemImage: "plus.circle.fill")
+                         .font(.title2)
+                         .foregroundColor(.white)
+                         .padding()
+                         .background(Color.blue)
+                         .clipShape(Capsule())
+                         .shadow(radius: 5)
+                 }
+                 .padding(.bottom)
+                 // Add a transition for smoother appearance/disappearance
+                 .transition(.move(edge: .bottom).combined(with: .opacity))
+             } // End if focusedFieldId == nil
+        } // End overlay
+        .toolbar {
+            // Group all trailing items together
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+
+                // 1. Always Visible: Total Price (Conditional)
+                if list.listType.supportsPrice {
+                    Text(Formatters.formatPriceForDisplay(list.totalPrice))
+                         .font(.subheadline)
+                         .foregroundColor(.secondary)
+                         // Add padding to separate from buttons maybe
+                         // .padding(.trailing, 5)
+                }
+
+                // 2. Always Visible: Share Button
+                Button {
+                    if let url = ShareExportManager.exportListToFile(list) {
+                        self.shareableItem = ShareableURL(url: url)
+                        print("Share button tapped, setting shareableItem to trigger sheet for URL: \(url.path)")
+                    } else {
+                        print("Error: Could not generate file URL for sharing.")
+                        // TODO: Show error alert
+                    }
+                } label: {
+                    Label("Share List", systemImage: "square.and.arrow.up") // Use Label for accessibility
+                }
+                
+                EditButton()
+                
+                // 3. "More" Menu for other actions
+                Menu {
+
+                    // Rename List action
+                    Button {
+                        editableListName = list.name // Pre-fill state
+                        showingEditTitleAlert = true
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+
+                    // Delete List action (Destructive)
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+
+                } label: {
+                    // The label for the menu itself (the button shown in the toolbar)
+                    Label("More Actions", systemImage: "ellipsis.circle")
+                }
+            } // End ToolbarItemGroup
+        } // End toolbar modifier
+        .sheet(item: $shareableItem) { itemWrapper in // Closure receives the ShareableURL instance
+             // Access the actual URL via the wrapper's property
+             ActivityViewRepresentable(activityItems: [itemWrapper.url])
+                 .onDisappear {
+                      // Optional cleanup
+                      // print("Share sheet dismissed. Temp file: \(itemWrapper.url.path)")
+                      // try? FileManager.default.removeItem(at: itemWrapper.url)
+                 }
+        }
+        .alert("Delete List?", isPresented: $showingDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                viewModel.deleteList(id: list.id)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: { Text("Are you sure you want to delete the list \"\(list.name)\"? This action cannot be undone.") }
+        .alert("Edit List Name", isPresented: $showingEditTitleAlert) {
+            TextField("List Name", text: $editableListName)
+            Button("Save") {
+                let trimmedName = editableListName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedName.isEmpty && trimmedName != list.name {
+                    viewModel.objectWillChange.send() // This tells ContentView (observing viewModel) to prepare for an update
+                    list.name = trimmedName // Update the list directly
+                    viewModel.listDidChange() // Trigger save
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Enter the new name for this list.")
+        }
+        .sheet(isPresented: $showingAddItemSheet) {
+             // Present the new AddItemView
+             AddItemView(viewModel: viewModel, list: list)
+        }
         .id(list.id)
+        .animation(.easeInOut(duration: 0.2), value: focusedFieldId)
     }
     
     // --- Helper Functions ---
