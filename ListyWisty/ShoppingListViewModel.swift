@@ -160,10 +160,13 @@ class ShoppingListViewModel: ObservableObject {
             quantity: finalQuantity, // Use provided quantity or default 1 (validated)
             unit: finalUnit // Use provided unit or default nil (cleaned)
         )
+        
+        // --- Find the correct insertion index ---
+        let insertionIndex = lists[listIndex].items.firstIndex { $0.isChecked } ?? lists[listIndex].items.endIndex
 
         // Append and Save
-        lists[listIndex].items.append(newItem)
-        print("✅ ViewModel: Added item '\(newItem.name)' (Qty: \(newItem.quantity), Unit: \(newItem.unit ?? "nil"), Price: \(String(describing: newItem.price))) to list '\(lists[listIndex].name)'")
+        lists[listIndex].items.insert(newItem, at: insertionIndex)
+        print("✅ ViewModel: Inserted item '\(newItem.name)' at index \(insertionIndex) (Qty: \(newItem.quantity), Unit: \(newItem.unit ?? "nil"), Price: \(String(describing: newItem.price))) to list '\(lists[listIndex].name)'")
 
         listDidChange() // Trigger save
     }
@@ -183,19 +186,21 @@ class ShoppingListViewModel: ObservableObject {
                  return // Nothing to add
              }
 
-            // Add the parsed items to the specific list's items array
-            var updatedItems = lists[listIndex].items
-            for parsedItem in parsedItems {
-                // Default quantity to 1 if LLM returns nil (shouldn't happen with good prompt but defensive)
-                let quantity = parsedItem.quantity ?? 1
-                let newItem = ShoppingItem(name: parsedItem.name, quantity: quantity, unit: parsedItem.unit)
-                updatedItems.append(newItem)
-                print("   ViewModel: Preparing to add item - \(newItem.name), Qty: \(newItem.quantity), Unit: \(newItem.unit ?? "nil")")
+            // Create ShoppingItem objects from parsed data
+            let newItemsToAdd = parsedItems.map { parsedItem -> ShoppingItem in
+                let quantity = max(1, parsedItem.quantity ?? 1) // Ensure quantity >= 1
+                let unit = parsedItem.unit?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty()
+                return ShoppingItem(name: parsedItem.name, isChecked: false, quantity: quantity, unit: unit)
+                // Note: Price is not currently parsed by AI in this setup
             }
 
-            // Update the list's items - this triggers @Published update for ShoppingListDetailView
-            lists[listIndex].items = updatedItems
-            print("✅ ViewModel: Added \(parsedItems.count) items to list '\(lists[listIndex].name)'")
+            // --- Find the correct insertion index (same logic as addItem) ---
+            let insertionIndex = lists[listIndex].items.firstIndex { $0.isChecked } ?? lists[listIndex].items.endIndex
+
+            // --- Insert all new items at that index ---
+            // This keeps the batch together and places them before checked items.
+            lists[listIndex].items.insert(contentsOf: newItemsToAdd, at: insertionIndex)
+            print("✅ ViewModel: Inserted \(newItemsToAdd.count) parsed items at index \(insertionIndex) in list '\(lists[listIndex].name)'")
 
             // Trigger save
             listDidChange()
