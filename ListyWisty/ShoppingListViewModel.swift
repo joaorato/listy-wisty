@@ -12,11 +12,14 @@ class ShoppingListViewModel: ObservableObject {
     
     // Keep track if we loaded data or used injected data
     private var didLoadFromFile = false
+
+    private let defaultFileName = "ShoppingLists.json"
+    private var dataFileName: String
     
     private var dataFileURL: URL {
         // Use the app's document directory
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ShoppingLists.json")
+            .appendingPathComponent(self.dataFileName)
     }
     
     // Existing initializer becomes a convenience initializer
@@ -25,7 +28,8 @@ class ShoppingListViewModel: ObservableObject {
         self.init(initialLists: nil)
     }
     
-    init(initialLists: [ShoppingList]?) {
+    init(initialLists: [ShoppingList]?, testFileName: String? = nil) {
+        self.dataFileName = testFileName ?? defaultFileName
         if let listsToUse = initialLists {
             print("🔄 ViewModel Initialized with injected data (\(listsToUse.count) lists). Skipping file load.")
             self.lists = listsToUse
