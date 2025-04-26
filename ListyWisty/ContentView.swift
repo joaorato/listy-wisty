@@ -14,6 +14,10 @@ struct ContentView: View {
     
     @Environment(\.editMode) var editMode
     
+    // State for delete confirmation
+    @State private var listToDelete: ShoppingList? = nil // Store the list object to delete
+    @State private var showingListDeleteAlert = false
+    
     var body: some View {
         NavigationStack {
             VStack  {
@@ -42,9 +46,23 @@ struct ContentView: View {
                             }
                         }
                         .onMove(perform: moveList)
-                        .onDelete(perform: deleteList)
+                        .onDelete { indexSet in
+                            prepareToDeleteList(at: indexSet) // <--- Call helper
+                        }
                     }
                     .listStyle(.insetGrouped)
+                    .alert("Delete List?", isPresented: $showingListDeleteAlert, presenting: listToDelete) { listInAlert in
+                        // Presenting the list object gives us access to it here
+                        Button("Delete", role: .destructive) {
+                            viewModel.deleteList(id: listInAlert.id)
+                            self.listToDelete = nil // Clear the state
+                        }
+                        Button("Cancel", role: .cancel) {
+                            self.listToDelete = nil // Clear the state
+                        }
+                    } message: { listInAlert in
+                        Text("Are you sure you want to delete the list \"\(listInAlert.name)\"? This action cannot be undone.")
+                    }
                 }
                 
                 Button(action: {
@@ -62,11 +80,6 @@ struct ContentView: View {
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Your Listies")
-//            .alert("Name your list", isPresented: $showingAlert) {
-//                TextField("Enter list Name", text: $newListName)
-//                Button("Create", action: createList) // ✅ Calls `createList()`
-//                Button("Cancel", role: .cancel) { newListName = "" }
-//            }
             // --- Sheet for Creating List ---
             .sheet(isPresented: $showingCreateSheet) {
                 // Pass the viewModel or a closure to handle list creation
@@ -88,28 +101,21 @@ struct ContentView: View {
         }
     }
     
+    // Helper function to handle onDelete action
+    private func prepareToDeleteList(at offsets: IndexSet) {
+        // Get the actual list from the *sorted* array using the offset
+        guard let index = offsets.first, index < viewModel.lists.count else { return }
+        self.listToDelete = viewModel.lists[index] // Store the list object
+        self.showingListDeleteAlert = true       // Trigger the alert
+    }
+    
     private func moveList(from source: IndexSet, to destination: Int) {
         // Use animation for the data change, complementing List's visual move
         withAnimation {
             viewModel.moveList(from: source, to: destination)
         }
     }
-    
-    // Optional: Swipe-to-delete on ContentView
-    private func deleteList(at offsets: IndexSet) {
-        offsets.forEach { index in
-            guard index < viewModel.lists.count else { return }
-            let listToDelete = viewModel.lists[index]
-            viewModel.deleteList(id: listToDelete.id)
-        }
-    }
-    
-//    private func createList() {
-//        guard !newListName.isEmpty else { return }
-//        let newList = viewModel.addList(name: newListName)
-//        selectedList = newList // ✅ Triggers navigation
-//        newListName = ""
-//    }
+
 }
 
 // --- New View for the Creation Sheet ---

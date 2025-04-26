@@ -30,6 +30,9 @@ struct ShoppingListDetailView: View {
     
     @Environment(\.editMode) var editMode
     
+    @State private var itemIndicesToDelete: IndexSet? = nil // Store IndexSet
+    @State private var showingItemDeleteAlert = false
+    
     // Helper to check if the current list supports quantity/price
     private var supportsQuantity: Bool { list.listType.supportsQuantity }
     private var supportsPrice: Bool { list.listType.supportsPrice }
@@ -103,7 +106,7 @@ struct ShoppingListDetailView: View {
                                             print("High priority TOGGLE gesture hit")
                                             withAnimation {
                                                 list.toggleItem(id: item.id)
-                                                viewModel.listDidChange()
+                                                viewModel.listDidChange(listId: list.id)
                                             }
                                         }
                                 )
@@ -164,7 +167,7 @@ struct ShoppingListDetailView: View {
                                 print("Swipe TOGGLE action triggered (full or tap)")
                                 withAnimation {
                                     list.toggleItem(id: item.id)
-                                    viewModel.listDidChange()
+                                    viewModel.listDidChange(listId: list.id)
                                 }
                             } label: {
                                 Label("Toggle", systemImage: item.isChecked ? "arrow.uturn.backward.circle" : "checkmark.circle.fill")
@@ -174,7 +177,9 @@ struct ShoppingListDetailView: View {
                     }
                 }
                 .onMove(perform: moveItem) // Enable moving of items
-                .onDelete(perform: deleteItem) // Enable swipe-to-delete
+                .onDelete { indexSet in
+                    prepareToDeleteItems(at: indexSet) // <--- Call helper
+                }
             }
             .listStyle(.plain) // ✅ Minimalist list style
             .environment(\.editMode, editMode)
@@ -192,7 +197,20 @@ struct ShoppingListDetailView: View {
                 } else {
                     print("Focus changed (old: \(String(describing: oldValue)), new: \(String(describing: newValue))), but not to the currently editing item or focus lost.")
                 }
-            } // End onChange
+            }
+            .alert("Delete Item?", isPresented: $showingItemDeleteAlert, presenting: itemIndicesToDelete) { indices in
+                Button("Delete", role: .destructive) {
+                    deleteItem(at: indices)
+                    self.itemIndicesToDelete = nil // Clear state
+                }
+                Button("Cancel", role: .cancel) {
+                    self.itemIndicesToDelete = nil // Clear state
+                }
+            } message: { indices in
+                // Create a message based on the items being deleted
+                Text("Are you sure you want to delete \(getNamesForDeletion(at: indices))?")
+            }
+            
         }
         .overlay(alignment: .bottom) { // <--- Use overlay
             // --- Add Item Button (Conditional Visibility) ---
@@ -288,7 +306,7 @@ struct ShoppingListDetailView: View {
                 if !trimmedName.isEmpty && trimmedName != list.name {
                     viewModel.objectWillChange.send() // This tells ContentView (observing viewModel) to prepare for an update
                     list.name = trimmedName // Update the list directly
-                    viewModel.listDidChange() // Trigger save
+                    viewModel.listDidChange(listId: list.id) // Trigger save
                 }
             }
             Button("Cancel", role: .cancel) { }
@@ -304,6 +322,35 @@ struct ShoppingListDetailView: View {
     }
     
     // --- Helper Functions ---
+    
+    private func prepareToDeleteItems(at offsets: IndexSet) {
+        self.itemIndicesToDelete = offsets
+        self.showingItemDeleteAlert = true
+    }
+    
+    private func getNamesForDeletion(at offsets: IndexSet) -> String { // Accept non-optional IndexSet from alert
+        // Use compactMap with index validation to safely get items
+        let itemsToDelete = offsets.compactMap { index -> ShoppingItem? in
+            // --- Check if index is valid *before* accessing ---
+            if list.items.indices.contains(index) {
+                return list.items[index]
+            } else {
+                // Log if an invalid index is encountered (helps debugging timing issues)
+                print("⚠️ Warning: Index \(index) out of bounds in getNamesForDeletion. List count: \(list.items.count). Offsets: \(offsets)")
+                return nil // Skip this index
+            }
+        }
+
+        // Generate message based on safely retrieved items
+        if itemsToDelete.isEmpty {
+             // This might happen if the list changed drastically before message render
+            return "selected items"
+        } else if itemsToDelete.count == 1 {
+            return "\"\(itemsToDelete[0].name)\""
+        } else {
+            return "\(itemsToDelete.count) items"
+        }
+    }
     
     private func startEditingItem(_ item: ShoppingItem) {
         // Reset focus state *before* potentially setting a new editing item
@@ -454,7 +501,7 @@ struct ShoppingListDetailView: View {
                             newPrice: newPrice,
                             newQuantity: newQuantity,
                             newUnit: newUnit)
-            viewModel.listDidChange() // Trigger save via ViewModel
+            viewModel.listDidChange(listId: list.id) // Trigger save via ViewModel
         } else {
              print("   No changes detected, save not triggered.")
         }
@@ -491,7 +538,7 @@ struct ShoppingListDetailView: View {
         print("Moving item from \(source) to \(destination)")
         withAnimation {
             list.moveItem(from: source, to: destination)
-            viewModel.listDidChange() // Trigger save
+            viewModel.listDidChange(listId: list.id) // Trigger save
         }
     }
     
@@ -499,7 +546,7 @@ struct ShoppingListDetailView: View {
     private func deleteItem(at offsets: IndexSet) {
         withAnimation {
             list.deleteItems(at: offsets)
-            viewModel.listDidChange() // Trigger save
+            viewModel.listDidChange(listId: list.id) // Trigger save
         }
     }
     

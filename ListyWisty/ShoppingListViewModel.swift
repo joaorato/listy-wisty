@@ -111,7 +111,7 @@ class ShoppingListViewModel: ObservableObject {
     @discardableResult
     func addList(name: String, listType: ListType) -> ShoppingList {
         let newList = ShoppingList(name: name, listType: listType)
-        lists.append(newList)
+        lists.insert(newList, at: 0)
         saveLists() // Save after adding
         return newList
     }
@@ -130,9 +130,16 @@ class ShoppingListViewModel: ObservableObject {
     }
     
     // public endpoint to trigger a save when something *inside* a list changes
-    func listDidChange() {
-        print("ℹ️ List content changed, triggering save.")
-        saveLists()
+    func listDidChange(listId: UUID) {
+        if let index = lists.firstIndex(where: { $0.id == listId }) {
+            print("ℹ️ List \(listId) content changed, updating modifiedAt and triggering save.")
+            lists[index].modifiedAt = Date()
+            saveLists()
+        } else {
+            print("⚠️ listDidChange called for unknown list ID: \(listId)")
+            // Still save just in case, though state might be inconsistent
+            saveLists()
+        }
     }
     
     @MainActor
@@ -172,7 +179,7 @@ class ShoppingListViewModel: ObservableObject {
         lists[listIndex].items.insert(newItem, at: insertionIndex)
         print("✅ ViewModel: Inserted item '\(newItem.name)' at index \(insertionIndex) (Qty: \(newItem.quantity), Unit: \(newItem.unit ?? "nil"), Price: \(String(describing: newItem.price))) to list '\(lists[listIndex].name)'")
 
-        listDidChange() // Trigger save
+        listDidChange(listId: lists[listIndex].id) // Trigger save
     }
     
     @MainActor // Ensure updates to list happen on the main thread
@@ -207,7 +214,7 @@ class ShoppingListViewModel: ObservableObject {
             print("✅ ViewModel: Inserted \(newItemsToAdd.count) parsed items at index \(insertionIndex) in list '\(lists[listIndex].name)'")
 
             // Trigger save
-            listDidChange()
+            listDidChange(listId: lists[listIndex].id)
         } catch {
             print("❌ ViewModel: Error parsing or adding items: \(error)")
             throw error

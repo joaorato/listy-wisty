@@ -12,14 +12,18 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
     @Published var name: String
     @Published var items: [ShoppingItem]
     var listType: ListType
-    
+    var createdAt: Date // <-- Add creation date
+    var modifiedAt: Date // <-- Add modification date
     let id: UUID
     
-    init(id: UUID = UUID(), name: String, items: [ShoppingItem] = [], listType: ListType = .shopping) {
+    init(id: UUID = UUID(), name: String, items: [ShoppingItem] = [], listType: ListType = .shopping, createdAt: Date? = nil, modifiedAt: Date? = nil) {
         self.id = id
         self.name = name
         self.items = items
         self.listType = listType
+        let now = Date()
+        self.createdAt = createdAt ?? now
+        self.modifiedAt = modifiedAt ?? now
     }
     
     // --- Sorting Logic Helper (can be static or private) ---
@@ -54,6 +58,13 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         }
     }
     
+    var completionPercentage: Double {
+        guard listType == .task else { return 0.0 } // Only for task lists
+        guard !items.isEmpty else { return 0.0 } // Empty list is 0% complete
+
+        let checkedCount = items.filter { $0.isChecked }.count
+        return Double(checkedCount) / Double(items.count)
+    }
     
     // MARK: - Item Management Methods
     func addItem(name: String) {
@@ -207,7 +218,7 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
 
     // Define coding keys to map properties to JSON keys
     enum CodingKeys: String, CodingKey {
-        case id, name, items, listType
+        case id, name, items, listType, createdAt, modifiedAt
     }
     
     // Initializer for decoding from JSON
@@ -219,6 +230,9 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         items = try container.decode([ShoppingItem].self, forKey: .items)
         // Note: @Published properties are initialized with decoded values
         listType = try container.decodeIfPresent(ListType.self, forKey: .listType) ?? .shopping
+        let now = Date()
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? now
+        modifiedAt = try container.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? now
     }
     
     // Function for encoding to JSON
@@ -229,6 +243,8 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         try container.encode(name, forKey: .name)
         try container.encode(items, forKey: .items)
         try container.encode(listType, forKey: .listType)
+        try container.encode(createdAt, forKey: .createdAt) // <-- Encode dates
+        try container.encode(modifiedAt, forKey: .modifiedAt) // <-- Encode dates
     }
 }
 

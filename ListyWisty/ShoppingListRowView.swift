@@ -16,23 +16,48 @@ struct ShoppingListRowView: View {
             Image(systemName: list.listType.systemImageName)
                 .foregroundColor(list.listType.iconColor) // Use type's color
             
-            Text(list.name)
-                .font(.headline)
-                // Allow name to shrink if needed, but give priority
-                .layoutPriority(1)
-                .lineLimit(1) // Prevent name wrapping interfering too
+            VStack(alignment: .leading) { // Use VStack to stack name and progress/price
+                Text(list.name)
+                    .font(.headline)
+                    .lineLimit(1)
+
+                // --- Conditional Progress/Price ---
+                if list.listType == .task {
+                    // Show Progress for Task lists
+                    if !list.items.isEmpty { // Only show if items exist
+                        ProgressView(value: list.completionPercentage)
+                            .progressViewStyle(.linear)
+                            .tint(list.listType.iconColor) // Use list color
+                            // Optional: Constrain height for aesthetics
+                            .frame(height: 5)
+                    } else {
+                        // Optional: Text for empty task list
+                        Text("No tasks")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                // Optionally, add spacing if needed
+                // Spacer().frame(height: 2)
+            }
+            .layoutPriority(1)
 
             Spacer() // Pushes the total price to the right
             
-            // Only show total price for shopping lists
-            if list.listType.supportsPrice { // Use the helper property
-                // Right side: Formatted Total Price
-                // Use the totalPrice computed property - this will now update
-                // when the observed 'list' object changes.
+            // --- Conditional Total/Percentage Text ---
+            if list.listType == .shopping {
                 Text(Formatters.formatPriceForDisplay(list.totalPrice))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                    .lineLimit(1) // Ensure total doesn't wrap oddly
+                    .lineLimit(1)
+            } else if list.listType == .task {
+                // Show Percentage Text for Task lists
+                Text("\(Int(list.completionPercentage * 100))%")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    // Optional: Add minimum width to prevent jumping
+                    .frame(minWidth: 40, alignment: .trailing)
             }
         }
         .padding(.vertical, 5)
