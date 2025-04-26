@@ -20,6 +20,11 @@ struct ShoppingListRowView: View {
                 Text(list.name)
                     .font(.headline)
                     .lineLimit(1)
+                
+                Text(Formatters.formatShortDate(list.createdAt))
+                    .font(.caption2) // Use a smaller font size
+                    .foregroundColor(.secondary)
+                    .lineLimit(1) // Prevent wrapping
 
                 // --- Conditional Progress/Price ---
                 if list.listType == .task {

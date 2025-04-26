@@ -31,6 +31,17 @@ struct Formatters {
         print("Shared Decimal Input Formatter Initialized - Locale: \(formatter.locale.identifier), Decimal Separator: '\(formatter.decimalSeparator ?? "nil")'")
         return formatter
     }()
+    
+    static let shortDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        // Use "d" for day without leading zero, "dd" for day with leading zero
+        // Use "M" for month without leading zero, "MM" for month with leading zero
+        // Use "yy" for 2-digit year, "yyyy" for 4-digit year
+        formatter.dateFormat = "dd/MM/yyyy"
+        formatter.locale = Locale(identifier: "en_US_POSIX") // Set locale for consistency if needed
+        print("Shared Short Date Formatter Initialized - Format: \(formatter.dateFormat ?? "nil")")
+        return formatter
+    }()
 
     // Static helper function for display formatting (avoids repetition in views)
     static func formatPriceForDisplay(_ price: Decimal?) -> String {
@@ -41,11 +52,10 @@ struct Formatters {
         }
         return currencyFormatter.string(from: price as NSDecimalNumber) ?? ""
     }
+    
+    static func formatShortDate(_ date: Date?) -> String {
+        guard let date = date else { return "" } // Return empty string for nil date
+        return shortDateFormatter.string(from: date)
+    }
 
-    // Optional: Static helper for parsing, though commitItemEdit has specific logic
-    // static func parseDecimalInput(_ string: String) -> Decimal? {
-    //    let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-    //    if trimmed.isEmpty { return nil } // Or handle as zero if desired
-    //    return decimalInputFormatter.number(from: trimmed)?.decimalValue
-    // }
 }

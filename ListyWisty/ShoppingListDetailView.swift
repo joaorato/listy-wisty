@@ -242,6 +242,11 @@ struct ShoppingListDetailView: View {
                          .foregroundColor(.secondary)
                          // Add padding to separate from buttons maybe
                          // .padding(.trailing, 5)
+                } else if list.listType == .task {
+                    // Show Completion Percentage for Task lists
+                    Text("\(Int(list.completionPercentage * 100))%") // Use the computed property
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
 
                 // 2. Always Visible: Share Button
