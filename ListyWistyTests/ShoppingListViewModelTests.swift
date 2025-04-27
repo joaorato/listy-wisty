@@ -198,7 +198,7 @@ struct ShoppingListViewModelTests {
     @Test("ViewModel addItem - Adds Item at Correct Index (Before Checked) and Saves")
     func viewModelAddItemCorrectIndexAndSaves() async throws {
         // Arrange
-        var list = ShoppingList(name: "Groceries", listType: .shopping)
+        let list = ShoppingList(name: "Groceries", listType: .shopping)
         list.items = [
             ShoppingItem(name: "Existing Unchecked", isChecked: false),
             ShoppingItem(name: "Existing Checked", isChecked: true, checkedTimestamp: Date())

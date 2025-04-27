@@ -9,6 +9,8 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject var viewModel = ShoppingListViewModel()
+    @StateObject private var dateCycleManager = DateCycleManager(interval: 5.0) // Control interval here
+    
     @State private var selectedList: ShoppingList? // ✅ Track newly created list
     @State private var showingCreateSheet = false // State to control the sheet
     
@@ -41,7 +43,7 @@ struct ContentView: View {
                             NavigationLink {
                                 ShoppingListDetailView(viewModel: viewModel, list: list)
                             } label: {
-                                ShoppingListRowView(list: list)
+                                ShoppingListRowView(list: list, dateCycleManager: dateCycleManager)
                                     .opacity(editMode?.wrappedValue.isEditing ?? false ? 0.7 : 1.0)
                             }
                         }
@@ -97,6 +99,13 @@ struct ContentView: View {
                     EditButton()
                 }
                 // You might want other toolbar items on the trailing side if needed
+            }
+            // --- Start/Stop Timer ---
+            .onAppear {
+                dateCycleManager.start()
+            }
+            .onDisappear {
+                dateCycleManager.stop()
             }
         }
     }

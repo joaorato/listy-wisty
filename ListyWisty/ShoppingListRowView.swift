@@ -9,7 +9,8 @@ import SwiftUI
 
 struct ShoppingListRowView: View {
     @ObservedObject var list: ShoppingList // Observe the individual list
-
+    @ObservedObject var dateCycleManager: DateCycleManager // Observe the Date Cycle Manager
+    
     var body: some View {
         HStack {
             // Use list type's icon and color
@@ -21,10 +22,18 @@ struct ShoppingListRowView: View {
                     .font(.headline)
                     .lineLimit(1)
                 
-                Text(Formatters.formatShortDate(list.createdAt))
-                    .font(.caption2) // Use a smaller font size
+                // --- Dynamic Date Text ---
+                let dateToShow = dateCycleManager.showModifiedDate ? list.modifiedAt : list.createdAt
+                let prefix = dateCycleManager.showModifiedDate ? "Modified:" : "Created:" // Add prefix back
+                
+                Text("\(prefix) \(Formatters.formatShortDate(dateToShow))")
+                    .font(.caption2)
                     .foregroundColor(.secondary)
-                    .lineLimit(1) // Prevent wrapping
+                    .lineLimit(1)
+                    // --- Add content transition for smooth text change ---
+                    .contentTransition(.opacity)
+                    // Add an ID tied to the boolean to help SwiftUI notice the change for transition
+                    .id("dateText_\(dateCycleManager.showModifiedDate)")
 
                 // --- Conditional Progress/Price ---
                 if list.listType == .task {
