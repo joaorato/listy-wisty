@@ -158,18 +158,18 @@ struct ShoppingListDetailView: View {
                                     } else if item.quantity != 1 && list.listType.supportsQuantity { // Only show Qty if > 1 AND no unit
                                         // Display only quantity (if > 1 and type supports it)
                                         Text("Qty: \(formattedQuantity(item.quantity))")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .padding(.horizontal, 5)
-                                        .background(Color.gray.opacity(0.15))
-                                        .clipShape(Capsule())
-                                    } // Else: If quantity is 1 and no unit, show nothing extra
-
-                                    if supportsPrice, let price = item.price {
-                                        Text(Formatters.formatPriceForDisplay(price))
                                             .font(.caption)
                                             .foregroundColor(.gray)
-                                            // Add spacing if both quantity/unit AND price are shown
+                                            .padding(.horizontal, 5)
+                                            .background(Color.gray.opacity(0.15))
+                                            .clipShape(Capsule())
+                                    } // Else: If quantity is 1 and no unit, show nothing extra
+                                    
+                                    if supportsPrice {
+                                        Text(Formatters.formatUnitPrice(price: item.price, unit: item.unit))
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                        // Add spacing if both quantity/unit AND price are shown
                                             .padding(.leading, (item.unit != nil || item.quantity != 1) ? 4 : 0)
                                     }
                                 }
@@ -190,6 +190,17 @@ struct ShoppingListDetailView: View {
                             )
                             
                             Spacer() // Push text and image to the left
+                            
+                            // --- Total Row Price Display (using helper) ---
+                            if supportsPrice {
+                                Text(Formatters.formatTotalRowPrice(price: item.price, quantity: item.quantity))
+                                    .font(.subheadline) // Slightly larger font for total
+                                    .foregroundColor(item.isChecked ? .gray : .primary) // Dim if checked
+                                    .fontWeight(.medium) // Optional: Make it slightly bolder
+                                    .lineLimit(1)
+                                    // Optional: Align text to right if needed, though Spacer usually handles it
+                                    // .frame(minWidth: 60, alignment: .trailing)
+                            }
                         }
                         .swipeActions(edge: .leading, allowsFullSwipe: true) { // Swipe from left-to-right
                             Button {
@@ -411,7 +422,7 @@ struct ShoppingListDetailView: View {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.minimumFractionDigits = 0 // Avoid trailing ".0"
-        formatter.maximumFractionDigits = 2 // Show up to 2 decimal places if needed
+        formatter.maximumFractionDigits = 3 // Show up to 3 decimal places if needed
         return formatter.string(for: quantity) ?? "\(quantity)" // Fallback
     }
     

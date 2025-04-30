@@ -57,5 +57,33 @@ struct Formatters {
         guard let date = date else { return "" } // Return empty string for nil date
         return shortDateFormatter.string(from: date)
     }
+    
+    /// Formats the price per unit, like "€1.99 / kg" or "€5.00 / item".
+    static func formatUnitPrice(price: Decimal?, unit: String?) -> String {
+        guard let price = price, price != .zero else { return "" } // Don't show for zero or nil price
+        
+        // Format the currency part
+        guard let formattedPrice = currencyFormatter.string(from: price as NSDecimalNumber) else {
+            return "" // Handle formatting error
+        }
+        
+        // Determine the unit part
+        let unitString = unit?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let validUnit = unitString, !validUnit.isEmpty {
+            return "\(formattedPrice) / \(validUnit)"
+        } else {
+            // Decide what to show if no unit: "/ item", just price, or "/ ea."?
+            // Let's use "/ item" for clarity, matching the Add/Edit view placeholder.
+            return "\(formattedPrice) / item"
+        }
+    }
+    
+    /// Calculates and formats the total price for an item row (price * quantity).
+    static func formatTotalRowPrice(price: Decimal?, quantity: Decimal) -> String {
+        guard let price = price, price != .zero else { return "" } // No total if no unit price
 
+        let totalPrice = price * quantity
+        // Use the existing currency formatter for the total
+        return currencyFormatter.string(from: totalPrice as NSDecimalNumber) ?? ""
+    }
 }
