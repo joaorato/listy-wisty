@@ -52,4 +52,4 @@ ListyWisty is a basic iOS application built with SwiftUI and powered by AI to he
 *   Swift 5.7+
 *   Xcode 14+
 *   iOS 16+ (Recommended)
-*   Gemini-2.0-Flash
+*   gemini-2.5-pro-preview-03-25
