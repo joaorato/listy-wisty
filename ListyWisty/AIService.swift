@@ -271,14 +271,17 @@ class AIService {
             // 8. Extract and Decode the Content JSON
             guard let contentText = geminiResponse.candidates?.first?.content?.parts.first?.text else {
                 // Check if maybe the response was empty but successful (e.g., safety block but not reported?)
-                 if httpResponse.statusCode == 200 {
-                      print("⚠️ AIService [Debug]: Gemini response successful (200) but no content text found.")
-                       throw AIServiceError.llmError("AI returned an empty response.")
-                 } else {
-                      // Should have been caught by error decoding earlier, but just in case
-                      print("❌ AIService [Debug]: No content found in Gemini response and status was \(httpResponse.statusCode).")
-                       throw AIServiceError.llmError("AI response was empty or missing content.")
-                 }
+                if httpResponse.statusCode == 200 {
+                    print("⚠️ AIService [Debug]: Gemini response successful (200) but no content text found.")
+                    throw AIServiceError.llmError("AI returned an empty response.")
+                } else if httpResponse.statusCode == 503 {
+                    print("❌ AIService [Debug]: Gemini is unavailable (503) and returned no content.")
+                    throw AIServiceError.llmError("AI model is currently unavailable.")
+                } else {
+                    // Should have been caught by error decoding earlier, but just in case
+                    print("❌ AIService [Debug]: No content found in Gemini response and status was \(httpResponse.statusCode).")
+                    throw AIServiceError.llmError("AI response was empty or missing content.")
+                }
             }
 
             print("   [DEBUG] Extracted content from Gemini: \(contentText)")

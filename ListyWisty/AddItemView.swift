@@ -16,7 +16,7 @@ struct AddItemView: View {
 
     // Item State
     @State private var itemName: String = ""
-    @State private var itemQuantity: Int = 1
+    @State private var itemQuantityString: String = "1"
     @State private var itemUnit: String = ""
     @State private var itemPriceString: String = "" // Use String for TextField binding
 
@@ -48,13 +48,35 @@ struct AddItemView: View {
                     // Show standard fields only if NOT using AI parser
                     if !useAIParser {
                         if supportsQuantity {
-                            Stepper("Quantity: \(itemQuantity)", value: $itemQuantity, in: 1...999)
+                            HStack { // Use HStack for custom quantity input
+                                Text("Qty:")
+                                Button { decrementQuantity() } label: { Image(systemName: "minus.circle") }
+                                    .buttonStyle(.borderless)
+                                    .disabled(decimalQuantityValue <= 0.001)
+
+                                TextField("Qty", text: $itemQuantityString)
+                                    .textFieldStyle(.roundedBorder)
+                                    .keyboardType(.decimalPad)
+                                    .frame(width: 60)
+                                    .multilineTextAlignment(.center)
+
+                                Button { incrementQuantity() } label: { Image(systemName: "plus.circle") }
+                                     .buttonStyle(.borderless)
+
+                                Spacer() // Push unit field right
+                            } // End Quantity HStack
+
                             TextField("Unit (e.g., kg, box)", text: $itemUnit)
                                 .autocapitalization(.none)
                         }
                         if supportsPrice {
-                            TextField("Price", text: $itemPriceString)
-                                .keyboardType(.decimalPad)
+                            HStack { // Group price field and label
+                                TextField("Price", text: $itemPriceString)
+                                    .keyboardType(.decimalPad)
+                                Text(priceUnitLabel) // Use computed label
+                                     .font(.caption)
+                                     .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
@@ -123,12 +145,18 @@ struct AddItemView: View {
                 let finalUnit = itemUnit.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty()
 
                 // Ensure quantity is valid
-                let finalQuantity = max(1, itemQuantity)
+                let quantityDecimal: Decimal
+                if let parsedQty = Formatters.decimalInputFormatter.number(from: itemQuantityString)?.decimalValue {
+                    quantityDecimal = max(Decimal(0.001), parsedQty) // Validate minimum
+                } else {
+                    print("⚠️ AddItemView: Invalid quantity '\(itemQuantityString)', defaulting to 1.")
+                    quantityDecimal = 1.0 // Default if parsing fails
+                }
 
                 // Call a *new* ViewModel method for detailed single item addition
                 await viewModel.addItem(
                     name: nameToAdd,
-                    quantity: finalQuantity,
+                    quantity: quantityDecimal,
                     unit: finalUnit,
                     price: priceDecimal, // Pass parsed price
                     toList: list
@@ -150,7 +178,26 @@ struct AddItemView: View {
     }
 
     // --- Helper Functions ---
-    // (You can copy/paste these from ShoppingListDetailView or make them shared)
+
+    private var decimalQuantityValue: Decimal {
+        Formatters.decimalInputFormatter.number(from: itemQuantityString)?.decimalValue ?? 0
+    }
+    
+    private func incrementQuantity() {
+        let newValue = decimalQuantityValue + 1
+        itemQuantityString = Formatters.decimalInputFormatter.string(for: newValue) ?? itemQuantityString
+    }
+    
+    private func decrementQuantity() {
+        let newValue = max(Decimal(0.001), decimalQuantityValue - 1)
+        itemQuantityString = Formatters.decimalInputFormatter.string(for: newValue) ?? itemQuantityString
+    }
+    
+    private var priceUnitLabel: String {
+        let unit = itemUnit.trimmingCharacters(in: .whitespacesAndNewlines)
+        return unit.isEmpty ? "€ / item" : "€ / \(unit)"
+    }
+    
     private func parsePrice(_ priceString: String) -> Decimal? {
         let trimmedString = priceString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedString.isEmpty else { return nil }
@@ -167,6 +214,9 @@ struct AddItemView: View {
          case .backendProxyError(let message): return "AI service failed: \(message)"
          case .llmError(let details):
              print("LLM Error Details: \(details)")
+             if details == "AI model is currently unavailable." {
+                 return "The AI service is temporarily unavailable. Please try again later."
+             }
              return "The AI failed to understand the items. Try phrasing differently or adding items manually."
          }
     }

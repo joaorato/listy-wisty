@@ -145,7 +145,7 @@ class ShoppingListViewModel: ObservableObject {
     @MainActor
     func addItem(
         name: String,
-        quantity: Int = 1, // Default quantity
+        quantity: Decimal = 1, // Default quantity
         unit: String? = nil, // Default unit
         price: Decimal? = nil, // Default price
         toList list: ShoppingList // Keep list parameter non-optional
@@ -161,7 +161,7 @@ class ShoppingListViewModel: ObservableObject {
         }
 
         // Validate quantity is at least 1
-        let finalQuantity = max(1, quantity)
+        let finalQuantity = max(Decimal(0.001), quantity)
         // Ensure unit is nil if empty/whitespace
         let finalUnit = unit?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty()
 
@@ -199,9 +199,10 @@ class ShoppingListViewModel: ObservableObject {
 
             // Create ShoppingItem objects from parsed data
             let newItemsToAdd = parsedItems.map { parsedItem -> ShoppingItem in
-                let quantity = max(1, parsedItem.quantity ?? 1) // Ensure quantity >= 1
+                let quantityInt = parsedItem.quantity ?? 1
+                let quantityDecimal = max(Decimal(0.001), Decimal(quantityInt))
                 let unit = parsedItem.unit?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty()
-                return ShoppingItem(name: parsedItem.name, isChecked: false, quantity: quantity, unit: unit)
+                return ShoppingItem(name: parsedItem.name, isChecked: false, quantity: quantityDecimal, unit: unit)
                 // Note: Price is not currently parsed by AI in this setup
             }
 

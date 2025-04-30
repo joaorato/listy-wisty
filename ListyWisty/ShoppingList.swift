@@ -12,8 +12,8 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
     @Published var name: String
     @Published var items: [ShoppingItem]
     var listType: ListType
-    var createdAt: Date // <-- Add creation date
-    var modifiedAt: Date // <-- Add modification date
+    var createdAt: Date
+    var modifiedAt: Date
     let id: UUID
     
     init(id: UUID = UUID(), name: String, items: [ShoppingItem] = [], listType: ListType = .shopping, createdAt: Date? = nil, modifiedAt: Date? = nil) {
@@ -53,8 +53,7 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         return items.reduce(Decimal.zero) { sum, item in
             // Multiply price by quantity for shopping lists
             let itemPrice = item.price ?? .zero
-            let itemQuantity = Decimal(item.quantity) // Convert Int quantity to Decimal
-            return sum + (itemPrice * itemQuantity)
+            return sum + (itemPrice * item.quantity)
         }
     }
     
@@ -107,7 +106,7 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
         // viewModel.listDidChange() will handle saving.
     }
     
-    func updateItem(id: UUID, newName: String, newPrice: Decimal?, newQuantity: Int?, newUnit: String?) {
+    func updateItem(id: UUID, newName: String, newPrice: Decimal?, newQuantity: Decimal?, newUnit: String?) {
         // 1. Find the item index
         guard let index = items.firstIndex(where: { $0.id == id }) else {
             print("⚠️ updateItem failed: Could not find item with ID \(id)")
@@ -146,9 +145,9 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
 
         // 5. Update Quantity (conditional on list type)
         if listType.supportsQuantity {
-            // Validate the incoming quantity: ensure it's at least 1.
+            // Validate the incoming quantity: ensure it's at least 0.001.
             // Default to 1 if nil is somehow passed.
-            let validatedQuantity = max(1, newQuantity ?? 1) // Apply validation *before* comparison
+            let validatedQuantity = max(0.001, newQuantity ?? 1.0) // Apply validation *before* comparison
             // Only update if the *validated* quantity is different from the current one.
             if items[index].quantity != validatedQuantity {
                 items[index].quantity = validatedQuantity // Assign the validated value
@@ -166,8 +165,8 @@ class ShoppingList: ObservableObject, Identifiable, Hashable, Codable {
             }
         } else {
             // Type does NOT support quantity. Ensure item's quantity is 1.
-            if items[index].quantity != 1 { // If it's currently not 1...
-                items[index].quantity = 1 // ...reset it to 1.
+            if items[index].quantity != 1.0 { // If it's currently not 1...
+                items[index].quantity = 1.0 // ...reset it to 1.
                 print("   Item \(id): Reset Quantity to 1 (type '\(listType.rawValue)' doesn't support quantity)")
                 didUpdate = true
             }

@@ -47,7 +47,7 @@ struct ListyWistyTests {
     func addItemWithAllDetails() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
-        let itemName = "Apples"; let quantity = 5; let unit = "kg"; let price: Decimal? = 3.99
+        let itemName = "Apples"; let quantity: Decimal = 5; let unit = "kg"; let price: Decimal? = 3.99
 
         // Act
         // Assuming addItem exists directly on ShoppingList for testing
@@ -290,7 +290,7 @@ struct ListyWistyTests {
     func updateItemOnlyName() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
-        let originalName = "Old Name"; let originalPrice: Decimal? = 1.00; let originalQuantity = 2; let originalUnit: String? = "box"
+        let originalName = "Old Name"; let originalPrice: Decimal? = 1.00; let originalQuantity: Decimal = 2; let originalUnit: String? = "box"
         sut.addItem(name: originalName, quantity: originalQuantity, unit: originalUnit, price: originalPrice)
         let itemID = try #require(sut.items.first?.id)
         let newName = "New Name"
@@ -311,7 +311,7 @@ struct ListyWistyTests {
     func updateItemOnlyPrice() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
-        let name = "Item"; let quantity = 3; let unit = "L"
+        let name = "Item"; let quantity: Decimal = 3; let unit = "L"
         sut.addItem(name: name, quantity: quantity, unit: unit, price: 1.00)
         let itemID = try #require(sut.items.first?.id)
         let newPrice: Decimal? = 2.50
@@ -331,10 +331,10 @@ struct ListyWistyTests {
     func updateItemOnlyQuantity() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
-        let name = "Item"; let price: Decimal? = 5.00; let unit: String? = "pack"; let quantity = 1
+        let name = "Item"; let price: Decimal? = 5.00; let unit: String? = "pack"; let quantity: Decimal = 1
         sut.addItem(name: name, quantity: quantity, unit: unit, price: price)
         let itemID = try #require(sut.items.first?.id)
-        let newQuantity = 3
+        let newQuantity: Decimal = 3
 
         // Act
         sut.updateItem(id: itemID, newName: name, newPrice: price, newQuantity: newQuantity, newUnit: unit)
@@ -351,7 +351,7 @@ struct ListyWistyTests {
     func updateItemUnitNilToValue() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
-        let name = "Water"; let price: Decimal? = 0.99; let quantity = 2; let originalUnit: String? = nil
+        let name = "Water"; let price: Decimal? = 0.99; let quantity: Decimal = 2; let originalUnit: String? = nil
         sut.addItem(name: name, quantity: quantity, unit: originalUnit, price: price)
         let itemID = try #require(sut.items.first?.id)
         let newUnit = "bottle"
@@ -371,7 +371,7 @@ struct ListyWistyTests {
     func updateItemUnitValueToNil() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
-        let name = "Flour"; let price: Decimal? = 2.49; let quantity = 1; let originalUnit: String? = "bag"
+        let name = "Flour"; let price: Decimal? = 2.49; let quantity: Decimal = 1; let originalUnit: String? = "bag"
         sut.addItem(name: name, quantity: quantity, unit: originalUnit, price: price)
         let itemID = try #require(sut.items.first?.id)
         let newUnit: String? = nil
@@ -391,7 +391,7 @@ struct ListyWistyTests {
     func updateItemUnitValueToValue() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
-        let name = "Rice"; let price: Decimal? = 5.00; let quantity = 1; let originalUnit: String? = "5lb bag"
+        let name = "Rice"; let price: Decimal? = 5.00; let quantity: Decimal = 1; let originalUnit: String? = "5lb bag"
         sut.addItem(name: name, quantity: quantity, unit: originalUnit, price: price)
         let itemID = try #require(sut.items.first?.id)
         let newUnit = "10lb bag"
@@ -411,7 +411,7 @@ struct ListyWistyTests {
     func updateItemUnitValueToEmpty() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
-        let name = "Salt"; let price: Decimal? = 1.10; let quantity = 1; let originalUnit: String? = "container"
+        let name = "Salt"; let price: Decimal? = 1.10; let quantity: Decimal = 1; let originalUnit: String? = "container"
         sut.addItem(name: name, quantity: quantity, unit: originalUnit, price: price)
         let itemID = try #require(sut.items.first?.id)
         let newUnit = "   " // Empty string after trimming
@@ -427,7 +427,7 @@ struct ListyWistyTests {
         #expect(updatedItem.unit == nil, "Unit should become nil when updated with empty string")
     }
 
-    @Test("Update Item - Quantity Does Not Go Below 1")
+    @Test("Update Item - Quantity Does Not Go Below 0.001")
     func updateItemQuantityMinimumOne() throws {
         // Arrange
         let sut = createSUT(type: .shopping)
@@ -437,12 +437,12 @@ struct ListyWistyTests {
         // Act 1: Try setting to 0
         sut.updateItem(id: itemID, newName: "Item", newPrice: nil, newQuantity: 0, newUnit: nil)
         let updatedItem1 = try #require(sut.items.first(where: { $0.id == itemID }))
-        #expect(updatedItem1.quantity == 1, "Quantity should be capped at 1 when trying to set 0")
+        #expect(updatedItem1.quantity == 0.001, "Quantity should be capped at 0.001 when trying to set 0")
 
         // Act 2: Try setting to -5
         sut.updateItem(id: itemID, newName: "Item", newPrice: nil, newQuantity: -5, newUnit: nil)
         let updatedItem2 = try #require(sut.items.first(where: { $0.id == itemID }))
-        #expect(updatedItem2.quantity == 1, "Quantity should be capped at 1 when trying to set negative")
+        #expect(updatedItem2.quantity == 0.001, "Quantity should be capped at 0.001 when trying to set negative")
     }
 
     @Test("Update Item - Price/Quantity/Unit Ignored for Non-Shopping List")
@@ -453,7 +453,7 @@ struct ListyWistyTests {
         let itemID = try #require(sut.items.first?.id)
         let newName = "Updated Task Name"
         let attemptedNewPrice: Decimal? = 10.00
-        let attemptedNewQuantity: Int? = 5
+        let attemptedNewQuantity: Decimal? = 5
         let attemptedNewUnit: String? = "days"
 
         // Act
@@ -578,11 +578,11 @@ struct ListyWistyTests {
 // If addItem logic relies heavily on ViewModel state, testing the ViewModel is necessary.
 extension ShoppingList {
     // Synchronous helper for adding items in tests
-    func addItem(name: String, quantity: Int = 1, unit: String? = nil, price: Decimal? = nil) {
+    func addItem(name: String, quantity: Decimal = 1, unit: String? = nil, price: Decimal? = nil) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
 
-        let finalQuantity = max(1, quantity)
+        let finalQuantity = max(0.001, quantity)
         let finalUnit = unit?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty()
 
         let newItem = ShoppingItem(

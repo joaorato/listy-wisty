@@ -16,7 +16,7 @@ struct ShoppingListDetailView: View {
     @State private var editingItemID: UUID? = nil
     @State private var itemEditText: String = ""
     @State private var itemEditPrice: String = ""
-    @State private var itemEditQuantity: Int = 1
+    @State private var itemEditQuantityString: String = "1"
     @State private var itemEditUnit: String = ""
     
     @State private var showingEditTitleAlert = false
@@ -52,8 +52,25 @@ struct ShoppingListDetailView: View {
                             
                             HStack {
                                 if supportsQuantity {
-                                    Stepper("Qty: \(itemEditQuantity)", value: $itemEditQuantity, in: 1...999) // Use Stepper for Quantity
-                                        .fixedSize()
+                                    Text("Qty:").font(.subheadline)
+                                    
+                                    Button { decrementQuantity() } label: {
+                                        Image(systemName: "minus.circle")
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .disabled(decimalQuantityValue <= 0.001) // Disable if at minimum
+                                    
+                                    TextField("Qty", text: $itemEditQuantityString)
+                                        .textFieldStyle(.roundedBorder)
+                                        .keyboardType(.decimalPad)
+                                        .frame(width: 60) // Adjust width as needed
+                                        .multilineTextAlignment(.center)
+                                    
+                                    // Plus Button
+                                    Button { incrementQuantity() } label: {
+                                        Image(systemName: "plus.circle")
+                                    }
+                                    .buttonStyle(.borderless)
                                     
                                     TextField("Unit", text: $itemEditUnit)
                                         .textFieldStyle(.roundedBorder)
@@ -65,11 +82,20 @@ struct ShoppingListDetailView: View {
                                 Spacer() // Push price field right
                                 
                                 if supportsPrice {
-                                    TextField("Price", text: $itemEditPrice)
-                                        .textFieldStyle(.roundedBorder)
-                                        .keyboardType(.decimalPad)
-                                        .frame(minWidth: 80, maxWidth: 100) // Adjusted width
-                                        .focused($focusedFieldId, equals: item.id)
+                                    HStack(spacing: 2) { // Group price field and unit label
+                                        TextField("Price", text: $itemEditPrice)
+                                            .textFieldStyle(.roundedBorder)
+                                            .keyboardType(.decimalPad)
+                                            .frame(minWidth: 70, maxWidth: 90) // Adjusted width
+                                            .focused($focusedFieldId, equals: item.id) // General focus ID
+
+                                        // Dynamic Price Unit Label
+                                        Text(priceUnitLabel)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .transition(.opacity.animation(.easeInOut(duration: 0.2))) // Animate change
+                                            .id("priceUnitLabel_\(itemEditUnit)") // Help transition
+                                    }
                                 }
                             }
                             
@@ -93,6 +119,9 @@ struct ShoppingListDetailView: View {
                         .cornerRadius(8)
                         .padding(.horizontal, -10)
                         .id(item.id)
+                        .onAppear {
+                            populateEditingState(for: item)
+                        }
                     }
                     // --- DISPLAY STATE ---
                     else {
@@ -120,15 +149,15 @@ struct ShoppingListDetailView: View {
                                 HStack(spacing: 6) { // Group quantity/price display
                                     if let unit = item.unit, !unit.isEmpty {
                                         // Display with unit
-                                        Text("Qty: \(item.quantity) \(unit)")
+                                        Text("Qty: \(formattedQuantity(item.quantity)) \(unit)")
                                             .font(.caption)
                                             .foregroundColor(.gray)
                                             .padding(.horizontal, 5)
                                             .background(Color.gray.opacity(0.15))
                                             .clipShape(Capsule())
-                                    } else if item.quantity > 1 && list.listType.supportsQuantity { // Only show Qty if > 1 AND no unit
+                                    } else if item.quantity != 1 && list.listType.supportsQuantity { // Only show Qty if > 1 AND no unit
                                         // Display only quantity (if > 1 and type supports it)
-                                        Text("Qty: \(item.quantity)")
+                                        Text("Qty: \(formattedQuantity(item.quantity))")
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                         .padding(.horizontal, 5)
@@ -141,7 +170,7 @@ struct ShoppingListDetailView: View {
                                             .font(.caption)
                                             .foregroundColor(.gray)
                                             // Add spacing if both quantity/unit AND price are shown
-                                            .padding(.leading, (item.unit != nil || item.quantity > 1) ? 4 : 0)
+                                            .padding(.leading, (item.unit != nil || item.quantity != 1) ? 4 : 0)
                                     }
                                 }
                             }
@@ -328,6 +357,64 @@ struct ShoppingListDetailView: View {
     
     // --- Helper Functions ---
     
+    // Computed property to parse quantity string for validation/buttons
+    private var decimalQuantityValue: Decimal {
+        // Use the standard decimal formatter for locale awareness
+        Formatters.decimalInputFormatter.number(from: itemEditQuantityString)?.decimalValue ?? 0
+    }
+
+    // Computed property for the dynamic price unit label
+    private var priceUnitLabel: String {
+        let unit = itemEditUnit.trimmingCharacters(in: .whitespacesAndNewlines)
+        if unit.isEmpty {
+            return "€ / item" // Or just "€"
+        } else {
+            return "€ / \(unit)"
+        }
+    }
+
+    // Function to populate state when starting edit
+    private func populateEditingState(for item: ShoppingItem) {
+        // Called from .onAppear of the editing VStack or inside startEditingItem
+        itemEditText = item.name
+        itemEditUnit = item.unit ?? ""
+        // Format the decimal quantity for the TextField string
+        itemEditQuantityString = Formatters.decimalInputFormatter.string(for: item.quantity) ?? "1"
+
+        if supportsPrice {
+            itemEditPrice = Formatters.decimalInputFormatter.string(for: item.price) ?? ""
+        } else {
+            itemEditPrice = ""
+        }
+        print("Populated editing state for \(item.name). Qty String: '\(itemEditQuantityString)'")
+    }
+    
+    // Action for Quantity Increment Button
+    private func incrementQuantity() {
+        let currentValue = decimalQuantityValue
+        // Increment logic (e.g., by 1 or 0.1 depending on context? Let's use 1 for now)
+        let newValue = currentValue + 1
+        itemEditQuantityString = Formatters.decimalInputFormatter.string(for: newValue) ?? itemEditQuantityString
+    }
+
+    // Action for Quantity Decrement Button
+    private func decrementQuantity() {
+        let currentValue = decimalQuantityValue
+        // Decrement logic, ensuring minimum of 0.001
+        let newValue = max(Decimal(0.001), currentValue - 1)
+        itemEditQuantityString = Formatters.decimalInputFormatter.string(for: newValue) ?? itemEditQuantityString
+    }
+    
+    // Format Decimal Quantity for Display State
+    private func formattedQuantity(_ quantity: Decimal) -> String {
+        // Use NumberFormatter that handles decimals appropriately
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0 // Avoid trailing ".0"
+        formatter.maximumFractionDigits = 2 // Show up to 2 decimal places if needed
+        return formatter.string(for: quantity) ?? "\(quantity)" // Fallback
+    }
+    
     private func prepareToDeleteItems(at offsets: IndexSet) {
         self.itemIndicesToDelete = offsets
         self.showingItemDeleteAlert = true
@@ -366,18 +453,18 @@ struct ShoppingListDetailView: View {
         guard editingItemID == nil && !(editMode?.wrappedValue.isEditing ?? false) else { return }
         print("--- Attempting to start editing item: \(item.name) (ID: \(item.id)) ---")
         editingItemID = item.id
-        itemEditText = item.name
-        itemEditQuantity = item.quantity
-        itemEditUnit = item.unit ?? ""
-        
-        // Populate price only if supported and present
-        if supportsPrice {
-            itemEditPrice = Formatters.decimalInputFormatter.string(for: item.price) ?? ""
-        } else {
-            itemEditPrice = ""
-        }
-        print("   Set editingItemID to: \(String(describing: editingItemID))")
-        print("   Set itemEditUnit to: '\(itemEditUnit)'")
+//        itemEditText = item.name
+//        itemEditQuantity = item.quantity
+//        itemEditUnit = item.unit ?? ""
+//        
+//        // Populate price only if supported and present
+//        if supportsPrice {
+//            itemEditPrice = Formatters.decimalInputFormatter.string(for: item.price) ?? ""
+//        } else {
+//            itemEditPrice = ""
+//        }
+//        print("   Set editingItemID to: \(String(describing: editingItemID))")
+//        print("   Set itemEditUnit to: '\(itemEditUnit)'")
     }
     
     private func commitItemEdit() {
@@ -385,7 +472,7 @@ struct ShoppingListDetailView: View {
         print("--- Committing Edit for Item ID: \(editingID) ---")
         print("   Name field: '\(itemEditText)'")
         print("   Price field: '\(itemEditPrice)' (Supported: \(supportsPrice))")
-        print("   Quantity field: \(itemEditQuantity) (Supported: \(supportsQuantity))")
+        print("   Quantity field: \(itemEditQuantityString) (Supported: \(supportsQuantity))")
         print("   Unit field: '\(itemEditUnit)' (Supported: \(supportsQuantity))")
 
         // Find the *actual* index in the original list.items array
@@ -399,7 +486,19 @@ struct ShoppingListDetailView: View {
         let originalItem = list.items[index]
         let newName = itemEditText.trimmingCharacters(in: .whitespacesAndNewlines)
         var newPrice: Decimal? = originalItem.price // Start with original
-        var newQuantity: Int? = originalItem.quantity // Start with original
+        var newQuantityDecimal: Decimal? = originalItem.quantity // Start with original
+        if supportsQuantity {
+            if let parsedQty = Formatters.decimalInputFormatter.number(from: itemEditQuantityString)?.decimalValue {
+                 newQuantityDecimal = max(Decimal(0.001), parsedQty) // Validate minimum
+                print("   Parsed Quantity: \(String(describing: newQuantityDecimal))")
+            } else {
+                print("   Parse FAILED for quantity string '\(itemEditQuantityString)'. Keeping original quantity.")
+                newQuantityDecimal = originalItem.quantity
+                // Optionally show user error
+            }
+        } else {
+             newQuantityDecimal = 1.0 // Reset to 1 if type doesn't support qty
+        }
         let unitString = itemEditUnit.trimmingCharacters(in: .whitespacesAndNewlines)
         var newUnit: String? = originalItem.unit // Start with original unit
         
@@ -465,34 +564,19 @@ struct ShoppingListDetailView: View {
         
         // --- Check for Quantity Change (Only if supported) ---
         if supportsQuantity {
-             // itemEditQuantity is bound to the Stepper, ensure it's at least 1
-             let validQuantity = max(1, itemEditQuantity)
-             if originalItem.quantity != validQuantity {
-                 newQuantity = validQuantity
-                 print("   Updating Quantity from \(originalItem.quantity) to \(newQuantity!)")
+            if originalItem.quantity != newQuantityDecimal {
                  needsSave = true
-             } else {
-                 print("   Quantity unchanged (\(originalItem.quantity)).")
-             }
-            
-            // Validate and Check Unit
-            let validatedUnit: String? = unitString.isEmpty ? nil : unitString // Treat empty string as nil
-            if originalItem.unit != validatedUnit {
-                newUnit = validatedUnit // Assign the validated value (could be nil)
-                print("   Updating Unit from '\(originalItem.unit ?? "nil")' to '\(newUnit ?? "nil")'")
-                needsSave = true
-            } else {
-                print("   Unit unchanged ('\(originalItem.unit ?? "nil")').")
             }
-            
+            let validatedUnit: String? = unitString.isEmpty ? nil : unitString
+            if originalItem.unit != validatedUnit {
+                newUnit = validatedUnit
+                needsSave = true
+            }
         } else {
-            print("   Quantity/Unit not supported for this list type.")
-            // Reset Quantity to 1 if not supported
             if originalItem.quantity != 1 { needsSave = true }
-            newQuantity = 1
-            // Reset Unit to nil if not supported
+            newQuantityDecimal = 1.0 // Reset
             if originalItem.unit != nil { needsSave = true }
-            newUnit = nil
+            newUnit = nil // Reset
         }
 
 
@@ -504,7 +588,7 @@ struct ShoppingListDetailView: View {
             list.updateItem(id: editingID,
                             newName: newName.isEmpty ? originalItem.name : newName, // Ensure non-empty name passed
                             newPrice: newPrice,
-                            newQuantity: newQuantity,
+                            newQuantity: newQuantityDecimal,
                             newUnit: newUnit)
             viewModel.listDidChange(listId: list.id) // Trigger save via ViewModel
         } else {
@@ -521,7 +605,7 @@ struct ShoppingListDetailView: View {
         editingItemID = nil
         itemEditText = ""
         itemEditPrice = ""
-        itemEditQuantity = 1
+        itemEditQuantityString = "1"
         itemEditUnit = ""
 
         // Only change focus if it was previously set to the item we were editing

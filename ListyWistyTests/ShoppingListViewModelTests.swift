@@ -172,7 +172,7 @@ struct ShoppingListViewModelTests {
         let (sut, testFileName) = try createViewModelSUT(initialLists: [list])
         defer { cleanupTestFile(fileName: testFileName) }
 
-        let itemName = "Screws"; let quantity = 50; let unit: String? = "box"; let price: Decimal? = 4.95
+        let itemName = "Screws"; let quantity: Decimal = 50; let unit: String? = "box"; let price: Decimal? = 4.95
 
         // Act
         await sut.addItem(name: itemName, quantity: quantity, unit: unit, price: price, toList: list)
